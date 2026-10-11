@@ -42,10 +42,13 @@ Only the art/rendering quality may be modernized:
 
 - [x] Legacy age foundation: age 20 is adulthood.
 - [x] Normal-speed age timing recovered from bytecode: one age step per 600 seconds.
-- [x] Hunger foundation.
-- [x] Health foundation.
-- [x] Food is dropped into the tank as individual flakes; fish consume flakes individually.
-- [ ] Exact remaining J2ME feeding values and research modifiers.
+- [x] FED/HEALTH advance on legacy age steps instead of draining every rendered second.
+- [x] Baseline level-1 FED behavior recovered: one FED point is removed per age step.
+- [x] Starvation baseline recovered: FED is clamped to zero at <=2 and HEALTH loses one point.
+- [x] Food is dropped into the tank as visible flakes; exact remaining food-hit/research behavior is still being reconstructed.
+- [ ] Food research level 2/3 probability modifiers.
+- [ ] Sustenance Magic Fish feeding modifier.
+- [ ] Exact environment-driven HEALTH changes.
 - [ ] Real-time clock separated from rendering.
 - [ ] Offline progression while the app is closed.
 - [x] Tank capacity restored to 18 fish.
@@ -62,8 +65,9 @@ Only the art/rendering quality may be modernized:
 - [x] Species names are built from the legacy fin-family + body-family names.
 - [x] Exact child combination rule recovered from bytecode: integer midpoint of the two parents' body indices and fin indices.
 - [x] Isolation breeding flow is functional: isolate one fish, select an adult mate, use MATCH/BREED.
-- [x] Exact pregnancy timing structure recovered: pregnancy target is current age + 3.
-- [x] At normal speed, three age steps equal up to 30 minutes, matching the J2ME tutorial text.
+- [x] Exact pregnancy target recovered: target age = current age + 3.
+- [x] Exact birth predicate recovered from m.h(): birth is ready only when target age < current age.
+- [x] The tutorial text says "up to 1/2 an hour"; where text and bytecode disagree, the bytecode predicate is authoritative for parity.
 - [x] Adult threshold and breeding eligibility use age 20.
 - [x] Birth into the mother's tank is functional.
 - [ ] Multiple-baby/fertility Magic Fish effect.
