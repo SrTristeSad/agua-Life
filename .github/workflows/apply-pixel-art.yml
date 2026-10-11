@@ -2,13 +2,6 @@ name: Apply Pixel Art
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'assets/pixel/**'
-      - 'lib/pixel_landing.dart'
-      - 'tools/apply_pixel_art.py'
-      - '.github/workflows/apply-pixel-art.yml'
 
 permissions:
   contents: write
