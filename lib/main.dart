@@ -309,7 +309,7 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
                 fish == null
                     ? 'ISOLATION'
                     : fish.pregnant
-                        ? 'PREGNANT  ${fish.pregnancyAgesRemaining}/3'
+                        ? 'PREGNANT'
                         : fish.speciesName.toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
