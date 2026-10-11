@@ -5,8 +5,8 @@ abstract final class SpeciesCatalog {
   static const sunny = FishSpecies(
     id: 'sunny',
     name: 'Sunny',
-    baseWidth: 34,
-    baseHeight: 20,
+    baseWidth: 38,
+    baseHeight: 28,
     minSpeed: 14,
     maxSpeed: 24,
     founderGenome: FishGenome(
@@ -26,8 +26,8 @@ abstract final class SpeciesCatalog {
   static const zephyr = FishSpecies(
     id: 'zephyr',
     name: 'Zephyr',
-    baseWidth: 33,
-    baseHeight: 19,
+    baseWidth: 39,
+    baseHeight: 28,
     minSpeed: 18,
     maxSpeed: 30,
     founderGenome: FishGenome(
@@ -47,8 +47,8 @@ abstract final class SpeciesCatalog {
   static const luna = FishSpecies(
     id: 'luna',
     name: 'Luna',
-    baseWidth: 31,
-    baseHeight: 18,
+    baseWidth: 37,
+    baseHeight: 27,
     minSpeed: 15,
     maxSpeed: 25,
     founderGenome: FishGenome(
@@ -68,8 +68,8 @@ abstract final class SpeciesCatalog {
   static const shadow = FishSpecies(
     id: 'shadow',
     name: 'Shadow',
-    baseWidth: 35,
-    baseHeight: 20,
+    baseWidth: 40,
+    baseHeight: 28,
     minSpeed: 13,
     maxSpeed: 22,
     founderGenome: FishGenome(

@@ -39,9 +39,9 @@ class AguaLifeGame extends FlameGame {
 
     _tank1 = tank1;
     _tank2 = tank2;
+    _layoutTanks();
     await add(tank1);
     await add(tank2);
-    _layoutTanks();
     _publishHud();
   }
 
