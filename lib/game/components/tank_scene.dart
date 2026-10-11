@@ -26,6 +26,7 @@ class TankScene extends PositionComponent {
   final List<FoodFlake> _food = <FoodFlake>[];
 
   ui.Image? _background;
+  bool _pixelBackground = false;
   int _focusedIndex = -1;
   bool _browsingEnabled = false;
 
@@ -42,7 +43,20 @@ class TankScene extends PositionComponent {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    _background = await Flame.images.load(backgroundAsset);
+
+    // Tank 1 now uses the production pixel-art aquarium. Tank 2 keeps the
+    // previous art until its dedicated atlas is imported, so a missing visual
+    // asset can never stop the game from loading.
+    if (tankNumber == 1) {
+      try {
+        _background = await Flame.images.load('pixel/tank_main.png');
+        _pixelBackground = true;
+      } catch (_) {
+        _background = await Flame.images.load(backgroundAsset);
+      }
+    } else {
+      _background = await Flame.images.load(backgroundAsset);
+    }
 
     for (final state in _fishStates) {
       await _addFishComponent(state);
@@ -74,7 +88,8 @@ class TankScene extends PositionComponent {
       return;
     }
 
-    if (_focusedIndex < 0 || _focusedIndex >= _fish.length ||
+    if (_focusedIndex < 0 ||
+        _focusedIndex >= _fish.length ||
         !_fish[_focusedIndex].state.alive) {
       _focusedIndex = _fish.indexOf(living.first);
     }
@@ -240,8 +255,14 @@ class TankScene extends PositionComponent {
       background,
       source,
       ui.Rect.fromLTWH(0, 0, width, height),
-      ui.Paint()..filterQuality = ui.FilterQuality.high,
+      ui.Paint()
+        ..filterQuality =
+            _pixelBackground ? ui.FilterQuality.none : ui.FilterQuality.high,
     );
+
+    // Pixel aquarium art already contains its own glass frame, lid, substrate,
+    // plants and shadows. Do not cover it with the old procedural frame.
+    if (_pixelBackground) return;
 
     final framePaint = ui.Paint()
       ..shader = ui.Gradient.linear(
