@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
 
 import 'components/tank_scene.dart';
+import 'data/legacy_breed_catalog.dart';
 import 'data/species_catalog.dart';
 import 'models/fish_genome.dart';
 import 'models/fish_selection.dart';
@@ -14,6 +16,8 @@ import 'models/legacy_action.dart';
 class AguaLifeGame extends FlameGame {
   @override
   Color backgroundColor() => const Color(0xFF0A2A43);
+
+  static const int maxFishPerTank = 18;
 
   final ValueNotifier<GameHudState> hud =
       ValueNotifier<GameHudState>(GameHudState.empty);
@@ -26,12 +30,14 @@ class AguaLifeGame extends FlameGame {
   final ValueNotifier<LegacyAction> action =
       ValueNotifier<LegacyAction>(LegacyAction.food);
   final ValueNotifier<int> currentTankNumber = ValueNotifier<int>(1);
+  final ValueNotifier<String?> eventMessage = ValueNotifier<String?>(null);
 
   final List<FishState> _tank1 = <FishState>[];
   final List<FishState> _tank2 = <FishState>[];
   TankScene? _scene;
   FishState? _isolated;
   FishState? _focused;
+  int? _isolationHomeTank;
   double _hudTimer = 0;
   final int _coins = 250;
   int _food = 12;
@@ -47,6 +53,16 @@ class AguaLifeGame extends FlameGame {
   @override
   void update(double dt) {
     super.update(dt);
+
+    final isolated = _isolated;
+    if (isolated != null) {
+      isolated.tick(dt);
+      final father = isolated.completePregnancyIfReady();
+      if (father != null) {
+        _deliverBaby(isolated, father);
+      }
+    }
+
     _hudTimer += dt;
     if (_hudTimer >= 0.2) {
       _hudTimer = 0;
@@ -114,8 +130,9 @@ class AguaLifeGame extends FlameGame {
         case LegacyAction.trash:
           return _trashFocused();
         case LegacyAction.breed:
+          return _breedFocusedWithIsolation();
         case LegacyAction.species:
-          return _focused != null;
+          return _focused != null || _isolated != null;
         case LegacyAction.food:
         case LegacyAction.shop:
         case LegacyAction.switchTank:
@@ -143,6 +160,10 @@ class AguaLifeGame extends FlameGame {
     }
   }
 
+  void clearEventMessage() {
+    eventMessage.value = null;
+  }
+
   void _seedFish() {
     if (_tank1.isNotEmpty || _tank2.isNotEmpty) return;
 
@@ -163,25 +184,33 @@ class AguaLifeGame extends FlameGame {
       FishState(
         species: SpeciesCatalog.sunny,
         genome: SpeciesCatalog.sunny.founderGenome,
-        ageSeconds: 210,
+        bodyIndex: 0,
+        finIndex: 0,
+        ageSeconds: 20 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.78,
       ),
       FishState(
         species: SpeciesCatalog.zephyr,
         genome: SpeciesCatalog.zephyr.founderGenome,
-        ageSeconds: 175,
+        bodyIndex: 1,
+        finIndex: 1,
+        ageSeconds: 21 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.84,
       ),
       FishState(
         species: SpeciesCatalog.luna,
         genome: SpeciesCatalog.luna.founderGenome,
-        ageSeconds: 96,
+        bodyIndex: 2,
+        finIndex: 4,
+        ageSeconds: 10 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.88,
       ),
       FishState(
         species: SpeciesCatalog.sunny,
         genome: spotted,
-        ageSeconds: 48,
+        bodyIndex: 3,
+        finIndex: 3,
+        ageSeconds: 3 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.91,
       ),
     ]);
@@ -190,13 +219,17 @@ class AguaLifeGame extends FlameGame {
       FishState(
         species: SpeciesCatalog.shadow,
         genome: SpeciesCatalog.shadow.founderGenome,
-        ageSeconds: 210,
+        bodyIndex: 16,
+        finIndex: 11,
+        ageSeconds: 20 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.82,
       ),
       FishState(
         species: SpeciesCatalog.luna,
         genome: SpeciesCatalog.luna.founderGenome,
-        ageSeconds: 130,
+        bodyIndex: 15,
+        finIndex: 10,
+        ageSeconds: 12 * FishState.secondsPerAgeAtNormalSpeed,
         hunger: 0.80,
       ),
     ]);
@@ -248,6 +281,7 @@ class AguaLifeGame extends FlameGame {
     final state = _scene?.removeFocusedFish();
     if (state == null) return false;
     _isolated = state;
+    _isolationHomeTank = currentTankNumber.value;
     isolationFish.value = FishSelection.fromState(state);
     cancelFishInteraction();
     _publishHud();
@@ -257,7 +291,15 @@ class AguaLifeGame extends FlameGame {
   Future<bool> _releaseIsolation() async {
     final state = _isolated;
     if (state == null) return false;
+
+    final target = currentTankNumber.value == 1 ? _tank1 : _tank2;
+    if (target.length >= maxFishPerTank) {
+      eventMessage.value = 'TANK FULL!';
+      return false;
+    }
+
     _isolated = null;
+    _isolationHomeTank = null;
     isolationFish.value = null;
     final scene = _scene;
     if (scene != null) {
@@ -268,13 +310,81 @@ class AguaLifeGame extends FlameGame {
     return true;
   }
 
+  bool _breedFocusedWithIsolation() {
+    final mother = _isolated;
+    final mate = _focused;
+    if (mother == null || mate == null) return false;
+    if (mother.pregnant) {
+      eventMessage.value = 'ALREADY PREGNANT!';
+      return false;
+    }
+    if (!mother.isAdult || !mate.isAdult) {
+      eventMessage.value = 'ONLY ADULT FISH CAN BREED.';
+      return false;
+    }
+
+    final started = mother.startPregnancy(mate);
+    if (!started) return false;
+
+    isolationFish.value = FishSelection.fromState(mother);
+    eventMessage.value = 'FISH PREGNANT';
+    cancelFishInteraction();
+    _publishHud();
+    return true;
+  }
+
+  void _deliverBaby(
+    FishState mother,
+    ({int fatherBody, int fatherFin}) father,
+  ) {
+    final homeTank = _isolationHomeTank ?? currentTankNumber.value;
+    final target = homeTank == 1 ? _tank1 : _tank2;
+
+    if (target.length >= maxFishPerTank) {
+      eventMessage.value = 'TANK FULL! BABY FISH WAS EATEN.';
+      _publishHud();
+      return;
+    }
+
+    final breed = LegacyBreedCatalog.childOf(
+      motherBody: mother.bodyIndex,
+      motherFin: mother.finIndex,
+      fatherBody: father.fatherBody,
+      fatherFin: father.fatherFin,
+    );
+    final visual = SpeciesCatalog.visualForLegacy(breed.body, breed.fin);
+    final baby = FishState(
+      species: visual,
+      genome: visual.founderGenome,
+      bodyIndex: breed.body,
+      finIndex: breed.fin,
+      ageSeconds: 0,
+      hunger: 0.90,
+      health: 1,
+    );
+    target.add(baby);
+
+    final scene = _scene;
+    if (homeTank == currentTankNumber.value && scene != null) {
+      unawaited(scene.addFish(baby));
+    }
+
+    eventMessage.value = 'A NEW BABY WAS BORN! ${baby.legacySpeciesName.toUpperCase()}';
+    _publishHud();
+  }
+
   bool _moveFocusedToOtherTank() {
-    final state = _scene?.removeFocusedFish();
+    final state = _scene?.focusedFish;
     if (state == null) return false;
-    final source = currentTankNumber.value == 1 ? _tank1 : _tank2;
     final target = currentTankNumber.value == 1 ? _tank2 : _tank1;
-    source.remove(state);
-    if (!target.contains(state)) target.add(state);
+    if (target.length >= maxFishPerTank) {
+      eventMessage.value = 'TANK FULL!';
+      return false;
+    }
+
+    final removed = _scene?.removeFocusedFish();
+    if (removed == null) return false;
+    if (!target.contains(removed)) target.add(removed);
     cancelFishInteraction();
     _publishHud();
     return true;
