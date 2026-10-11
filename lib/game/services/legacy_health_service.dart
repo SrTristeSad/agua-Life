@@ -45,12 +45,9 @@ class LegacyHealthService {
       };
     }
 
-    // Exact equipment bonuses from n.c(m): each owned system has a 41/100
-    // chance (roll <= 40) to add one health point for this age step.
     if (ownsAerationSystem && _roll(100) <= 40) delta++;
     if (ownsTemperatureRegulator && _roll(100) <= 40) delta++;
 
-    // Positive regeneration is suppressed while sick or critically hungry.
     if ((fish.isSick || fish.fedPoints < 5) && delta > 0) {
       delta = 0;
     }
@@ -69,25 +66,18 @@ class LegacyHealthService {
     if (!fish.alive) return;
 
     final level = foodResearchLevel.clamp(1, 3);
-    var consume = false;
-    switch (level) {
-      case 1:
-        consume = true;
-      case 2:
-        consume = _roll(100) <= 60;
-      case 3:
-        consume = _roll(100) <= 30;
-    }
+    final consume = switch (level) {
+      1 => true,
+      2 => _roll(100) <= 60,
+      _ => _roll(100) <= 30,
+    };
     if (consume) fish.addFedPoints(-1);
 
     if (fish.fedPoints <= 2) {
       fish.setFedPoints(0);
-      // Sustenance gives a 34/100 chance (roll <= 33) to avoid starvation
-      // damage. Without it, starvation always removes one health point.
       final avoidsDamage = magicSustenance && _roll(100) <= 33;
       if (!avoidsDamage) fish.addHealthPoints(-1);
 
-      // The nutrition plant can restore 5 FED with a 21/100 chance.
       if (ownsNutritionPlant && _roll(100) <= 20) {
         fish.addFedPoints(5);
       }
@@ -171,8 +161,8 @@ class LegacyHealthService {
     return affected;
   }
 
-  /// Unknown chemical: for each living fish, roll <= 25 mutates one of the
-  /// two family indices by one. At 0/20 the mutation always moves inward.
+  /// Unknown chemical: for each living fish, roll <= 25 mutates one family
+  /// index by one. At 0/20 the mutation always moves inward.
   int applyUnknownChemical(Iterable<FishState> fish) {
     var mutated = 0;
     for (final state in fish) {
