@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/flame.dart';
 
+import '../models/fish_disease.dart';
 import '../models/fish_state.dart';
 
 class FishComponent extends PositionComponent with TapCallbacks {
@@ -77,9 +78,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
   void onMount() {
     super.onMount();
     final tank = parent;
-    if (tank is! PositionComponent) {
-      return;
-    }
+    if (tank is! PositionComponent) return;
 
     final usableWidth = max(1.0, tank.width - width * 1.6);
     final minY = tank.height * 0.22 + height / 2;
@@ -95,9 +94,6 @@ class FishComponent extends PositionComponent with TapCallbacks {
   @override
   void update(double dt) {
     super.update(dt);
-    // FishState time is advanced by AguaLifeGame for every tank, including
-    // tanks that are not currently rendered. This component is presentation
-    // only, so switching screens cannot pause another tank's simulation.
     _elapsed += dt;
     _feedGlow = max(0, _feedGlow - dt * 1.7);
 
@@ -107,14 +103,10 @@ class FishComponent extends PositionComponent with TapCallbacks {
       state.species.baseHeight * state.genome.bodyScale * targetScale,
     );
 
-    if (!state.alive) {
-      return;
-    }
+    if (!state.alive) return;
 
     final tank = parent;
-    if (tank is! PositionComponent) {
-      return;
-    }
+    if (tank is! PositionComponent) return;
 
     final hungerSpeed = 0.48 + state.hunger * 0.52;
     final healthSpeed = 0.4 + state.health * 0.6;
@@ -159,9 +151,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
     }
 
     final art = _art;
-    if (art == null) {
-      return;
-    }
+    if (art == null) return;
 
     canvas.save();
     if (_direction < 0) {
@@ -179,6 +169,8 @@ class FishComponent extends PositionComponent with TapCallbacks {
       ui.Paint()..filterQuality = ui.FilterQuality.high,
     );
 
+    _renderDisease(canvas);
+
     if (state.genome.shimmer || _feedGlow > 0) {
       final alpha = state.genome.shimmer ? 85 : (80 * _feedGlow).round();
       canvas.drawOval(
@@ -188,5 +180,44 @@ class FishComponent extends PositionComponent with TapCallbacks {
     }
 
     canvas.restore();
+  }
+
+  void _renderDisease(ui.Canvas canvas) {
+    switch (state.disease) {
+      case FishDisease.none:
+        return;
+      case FishDisease.ich:
+        final paint = ui.Paint()..color = const ui.Color(0xF5F7FFFF);
+        final radius = max(0.9, width * 0.025);
+        const points = <(double, double)>[
+          (0.30, 0.33),
+          (0.43, 0.58),
+          (0.56, 0.28),
+          (0.66, 0.52),
+          (0.76, 0.38),
+          (0.51, 0.72),
+        ];
+        for (final point in points) {
+          canvas.drawCircle(
+            ui.Offset(width * point.$1, height * point.$2),
+            radius,
+            paint,
+          );
+        }
+      case FishDisease.fungus:
+        final outer = ui.Paint()..color = const ui.Color(0xD04F8F38);
+        final inner = ui.Paint()..color = const ui.Color(0xD078C65A);
+        final blobs = <ui.Offset>[
+          ui.Offset(width * 0.42, height * 0.30),
+          ui.Offset(width * 0.50, height * 0.25),
+          ui.Offset(width * 0.56, height * 0.33),
+          ui.Offset(width * 0.48, height * 0.39),
+        ];
+        for (var i = 0; i < blobs.length; i++) {
+          final r = max(1.2, width * (0.045 - i * 0.004));
+          canvas.drawCircle(blobs[i], r + 0.7, outer);
+          canvas.drawCircle(blobs[i], r, inner);
+        }
+    }
   }
 }
