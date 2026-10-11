@@ -84,7 +84,8 @@ class TankScene extends PositionComponent {
   }
 
   void _drawLightRays(ui.Canvas canvas) {
-    final rayPaint = ui.Paint()..color = const ui.Color(0xFFFFFFFF).withAlpha(18);
+    final rayPaint = ui.Paint()
+      ..color = const ui.Color(0xFFFFFFFF).withAlpha(18);
     final ray = ui.Path()
       ..moveTo(width * 0.08, 0)
       ..lineTo(width * 0.27, 0)
@@ -97,7 +98,7 @@ class TankScene extends PositionComponent {
   void _drawPlants(ui.Canvas canvas) {
     final stems = ui.Paint()
       ..color = const ui.Color(0xFF1B7A50)
-      ..strokeWidth = max(2, width * 0.008)
+      ..strokeWidth = max(2.0, width * 0.008)
       ..strokeCap = ui.StrokeCap.round;
     final leaves = ui.Paint()..color = const ui.Color(0xFF52B95B);
 
@@ -107,7 +108,7 @@ class TankScene extends PositionComponent {
       final plantHeight = height * (0.10 + (plant % 3) * 0.035);
       canvas.drawLine(
         ui.Offset(baseX, baseY),
-        ui.Offset(baseX + (plant.isEven ? -4 : 4), baseY - plantHeight),
+        ui.Offset(baseX + (plant.isEven ? -4.0 : 4.0), baseY - plantHeight),
         stems,
       );
       for (var leaf = 1; leaf <= 3; leaf++) {
@@ -162,9 +163,14 @@ class TankScene extends PositionComponent {
     final frame = ui.Paint()
       ..color = const ui.Color(0xDD142B3C)
       ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = max(4, width * 0.018);
+      ..strokeWidth = max(4.0, width * 0.018);
     canvas.drawRect(
-      ui.Rect.fromLTWH(2, 2, max(0, width - 4), max(0, height - 4)),
+      ui.Rect.fromLTWH(
+        2.0,
+        2.0,
+        max(0.0, width - 4.0),
+        max(0.0, height - 4.0),
+      ),
       frame,
     );
 
