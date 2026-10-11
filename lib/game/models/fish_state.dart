@@ -1,4 +1,5 @@
 import '../data/legacy_breed_catalog.dart';
+import 'fish_disease.dart';
 import 'fish_genome.dart';
 import 'fish_species.dart';
 
@@ -6,23 +7,18 @@ class FishState {
   FishState({
     required this.species,
     required this.genome,
-    required this.bodyIndex,
-    required this.finIndex,
+    required int bodyIndex,
+    required int finIndex,
     double hunger = 0.85,
     double health = 1,
     this.ageSeconds = 0,
-  })  : _hunger = hunger.clamp(0, 1).toDouble(),
+    this.disease = FishDisease.none,
+  })  : _bodyIndex = bodyIndex,
+        _finIndex = finIndex,
+        _hunger = hunger.clamp(0, 1).toDouble(),
         _health = health.clamp(0, 1).toDouble() {
-    RangeError.checkValidIndex(
-      bodyIndex,
-      LegacyBreedCatalog.bodyFamilies,
-      'bodyIndex',
-    );
-    RangeError.checkValidIndex(
-      finIndex,
-      LegacyBreedCatalog.finFamilies,
-      'finIndex',
-    );
+    _checkFamilyIndices();
+    if (_health <= 0) alive = false;
   }
 
   static const int adultAge = 20;
@@ -33,27 +29,33 @@ class FishState {
 
   final FishSpecies species;
   final FishGenome genome;
-  final int bodyIndex;
-  final int finIndex;
+  int _bodyIndex;
+  int _finIndex;
 
   double ageSeconds;
   double _hunger;
   double _health;
   bool alive = true;
+  FishDisease disease;
 
   int? _pregnancyTargetAge;
   int? _pregnancyFatherBody;
   int? _pregnancyFatherFin;
 
+  int get bodyIndex => _bodyIndex;
+  int get finIndex => _finIndex;
   double get hunger => _hunger;
   double get health => _health;
+  int get fedPoints => (_hunger * 100).round().clamp(0, 100);
+  int get healthPoints => (_health * 100).round().clamp(0, 100);
 
   int get age => ageSeconds ~/ secondsPerAgeAtNormalSpeed;
   bool get isAdult => age >= adultAge;
+  bool get isSick => disease != FishDisease.none;
 
   String get legacySpeciesName => LegacyBreedCatalog.speciesName(
-        body: bodyIndex,
-        fin: finIndex,
+        body: _bodyIndex,
+        fin: _finIndex,
       );
 
   bool get pregnant => _pregnancyTargetAge != null;
@@ -61,8 +63,6 @@ class FishState {
   int get pregnancyAgesRemaining {
     final target = _pregnancyTargetAge;
     if (target == null) return 0;
-    // The J2ME birth predicate is targetAge < currentAge, so the target age
-    // itself is still pregnant.
     return (target + 1 - age).clamp(0, pregnancyAgeSteps + 1);
   }
 
@@ -71,48 +71,71 @@ class FishState {
 
   double get visualScale => 0.78 + growthProgress * 0.22;
 
-  void tick(double dt) {
-    if (!alive || dt <= 0) {
-      return;
-    }
-
+  /// Advances only legacy time/age and returns how many age boundaries were
+  /// crossed. Health, disease and FED are processed by the simulation service
+  /// in the same order as the J2ME game.
+  int tick(double dt) {
+    if (!alive || dt <= 0) return 0;
     final previousAge = age;
     ageSeconds += dt;
-    final currentAge = age;
-
-    // In the legacy simulation feeding/health pressure is processed once for
-    // each age step, not continuously every rendered second. This baseline is
-    // the level-1 food behavior recovered from n.a(m, boolean). Research and
-    // Magic Fish modifiers are layered on later by the simulation service.
-    for (var step = previousAge; step < currentAge && alive; step++) {
-      _advanceLegacyNeedsOneAge();
-    }
-  }
-
-  void _advanceLegacyNeedsOneAge() {
-    _hunger = (_hunger - 0.01).clamp(0, 1).toDouble();
-
-    // The J2ME code clamps FED to zero at <=2 and removes one HEALTH point.
-    if (_hunger <= 0.02) {
-      _hunger = 0;
-      _health = (_health - 0.01).clamp(0, 1).toDouble();
-    }
-
-    if (_health <= 0) {
-      alive = false;
-    }
+    return age - previousAge;
   }
 
   void feed([double amount = 0.38]) {
-    if (!alive) {
-      return;
-    }
-
+    if (!alive) return;
     _hunger = (_hunger + amount).clamp(0, 1).toDouble();
   }
 
+  void setFedPoints(int value) {
+    _hunger = value.clamp(0, 100) / 100;
+  }
+
+  void addFedPoints(int delta) {
+    setFedPoints(fedPoints + delta);
+  }
+
+  void setHealthPoints(int value) {
+    _health = value.clamp(0, 100) / 100;
+    if (_health <= 0) alive = false;
+  }
+
+  void addHealthPoints(int delta) {
+    if (!alive && delta <= 0) return;
+    setHealthPoints(healthPoints + delta);
+  }
+
+  void addLegacyAge(int ages) {
+    if (!alive || ages <= 0) return;
+    ageSeconds += ages * secondsPerAgeAtNormalSpeed;
+  }
+
+  void infect(FishDisease next) {
+    if (!alive || next == FishDisease.none || isSick) return;
+    disease = next;
+    // Disease and pregnancy share the physiological state in the J2ME model.
+    // Becoming sick clears the pregnancy target.
+    _clearPregnancy();
+  }
+
+  void cureDisease() {
+    if (!alive) return;
+    disease = FishDisease.none;
+  }
+
+  void mutateLegacyFamily({int? bodyIndex, int? finIndex}) {
+    if (bodyIndex != null) _bodyIndex = bodyIndex;
+    if (finIndex != null) _finIndex = finIndex;
+    _checkFamilyIndices();
+  }
+
   bool startPregnancy(FishState mate) {
-    if (!alive || !mate.alive || !isAdult || !mate.isAdult || pregnant) {
+    if (!alive ||
+        !mate.alive ||
+        isSick ||
+        mate.isSick ||
+        !isAdult ||
+        !mate.isAdult ||
+        pregnant) {
       return false;
     }
 
@@ -131,13 +154,28 @@ class FishState {
     }
 
     // Exact predicate from m.h(): pregnancyTargetAge < currentAge.
-    if (age <= target) {
-      return null;
-    }
+    if (age <= target) return null;
 
+    _clearPregnancy();
+    return (fatherBody: fatherBody, fatherFin: fatherFin);
+  }
+
+  void _clearPregnancy() {
     _pregnancyTargetAge = null;
     _pregnancyFatherBody = null;
     _pregnancyFatherFin = null;
-    return (fatherBody: fatherBody, fatherFin: fatherFin);
+  }
+
+  void _checkFamilyIndices() {
+    RangeError.checkValidIndex(
+      _bodyIndex,
+      LegacyBreedCatalog.bodyFamilies,
+      'bodyIndex',
+    );
+    RangeError.checkValidIndex(
+      _finIndex,
+      LegacyBreedCatalog.finFamilies,
+      'finIndex',
+    );
   }
 }
