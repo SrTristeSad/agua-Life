@@ -87,4 +87,12 @@ abstract final class SpeciesCatalog {
   );
 
   static const all = <FishSpecies>[sunny, zephyr, luna, shadow];
+
+  // Temporary presentation mapping while the 21 legacy body families are being
+  // redrawn. The body/fin indices in FishState remain the gameplay source of
+  // truth; this method only chooses which replacement sprite is rendered.
+  static FishSpecies visualForLegacy(int bodyIndex, int finIndex) {
+    final key = (bodyIndex * 3 + finIndex) % all.length;
+    return all[key];
+  }
 }
