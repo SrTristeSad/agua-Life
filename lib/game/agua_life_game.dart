@@ -54,6 +54,16 @@ class AguaLifeGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
 
+    // The J2ME simulation is real-time and independent of which tank is being
+    // viewed. Advance both tanks here instead of inside FishComponent so an
+    // off-screen tank never pauses when the player switches screens.
+    for (final fish in _tank1) {
+      fish.tick(dt);
+    }
+    for (final fish in _tank2) {
+      fish.tick(dt);
+    }
+
     final isolated = _isolated;
     if (isolated != null) {
       isolated.tick(dt);
