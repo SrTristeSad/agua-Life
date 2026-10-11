@@ -4,9 +4,14 @@ import 'fish_state.dart';
 class FishSelection {
   const FishSelection({
     required this.speciesName,
+    required this.age,
     required this.hunger,
     required this.health,
     required this.growthProgress,
+    required this.bodyIndex,
+    required this.finIndex,
+    required this.pregnant,
+    required this.pregnancyAgesRemaining,
     required this.pattern,
     required this.bodyScale,
     required this.finScale,
@@ -19,10 +24,15 @@ class FishSelection {
 
   factory FishSelection.fromState(FishState state) {
     return FishSelection(
-      speciesName: state.species.name,
+      speciesName: state.legacySpeciesName,
+      age: state.age,
       hunger: state.hunger,
       health: state.health,
       growthProgress: state.growthProgress,
+      bodyIndex: state.bodyIndex,
+      finIndex: state.finIndex,
+      pregnant: state.pregnant,
+      pregnancyAgesRemaining: state.pregnancyAgesRemaining,
       pattern: state.genome.pattern,
       bodyScale: state.genome.bodyScale,
       finScale: state.genome.finScale,
@@ -35,9 +45,14 @@ class FishSelection {
   }
 
   final String speciesName;
+  final int age;
   final double hunger;
   final double health;
   final double growthProgress;
+  final int bodyIndex;
+  final int finIndex;
+  final bool pregnant;
+  final int pregnancyAgesRemaining;
   final FishPattern pattern;
   final double bodyScale;
   final double finScale;
