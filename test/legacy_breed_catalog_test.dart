@@ -19,5 +19,21 @@ void main() {
         }
       }
     });
+
+    test('child uses integer midpoint of both parents like the J2ME build', () {
+      final child = LegacyBreedCatalog.childOf(
+        motherBody: 2,
+        motherFin: 4,
+        fatherBody: 11,
+        fatherFin: 19,
+      );
+
+      expect(child.body, 6);
+      expect(child.fin, 11);
+      expect(
+        LegacyBreedCatalog.speciesName(body: child.body, fin: child.fin),
+        'Crimson Goldshark',
+      );
+    });
   });
 }
