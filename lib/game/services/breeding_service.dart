@@ -16,10 +16,17 @@ class BreedingService {
       secondaryColor:
           _inheritColor(parentA.secondaryColor, parentB.secondaryColor),
       pattern: _inheritPattern(parentA.pattern, parentB.pattern),
-      bodyScale: _inheritDouble(parentA.bodyScale, parentB.bodyScale, 0.08, 0.8, 1.2),
-      finScale: _inheritDouble(parentA.finScale, parentB.finScale, 0.12, 0.75, 1.4),
-      growthRate:
-          _inheritDouble(parentA.growthRate, parentB.growthRate, 0.08, 0.7, 1.35),
+      bodyScale:
+          _inheritDouble(parentA.bodyScale, parentB.bodyScale, 0.08, 0.8, 1.2),
+      finScale:
+          _inheritDouble(parentA.finScale, parentB.finScale, 0.12, 0.75, 1.4),
+      growthRate: _inheritDouble(
+        parentA.growthRate,
+        parentB.growthRate,
+        0.08,
+        0.7,
+        1.35,
+      ),
       diseaseResistance: _inheritDouble(
         parentA.diseaseResistance,
         parentB.diseaseResistance,
@@ -36,7 +43,9 @@ class BreedingService {
         0.75,
         1.6,
       ),
-      shimmer: parentA.shimmer || parentB.shimmer || random.nextDouble() < 0.02,
+      shimmer: parentA.shimmer ||
+          parentB.shimmer ||
+          random.nextDouble() < 0.02,
     );
   }
 
@@ -53,7 +62,7 @@ class BreedingService {
 
     int mutate(int channel) {
       final delta = random.nextInt(31) - 15;
-      return (channel + delta).clamp(0, 255);
+      return (channel + delta).clamp(0, 255).toInt();
     }
 
     return (alpha << 24) |
