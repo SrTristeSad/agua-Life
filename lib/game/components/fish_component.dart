@@ -4,33 +4,41 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 
 import '../models/fish_genome.dart';
-import '../models/fish_species.dart';
+import '../models/fish_state.dart';
 
 class FishComponent extends PositionComponent {
   FishComponent({
-    required this.species,
-    required this.genome,
+    required this.state,
     required Random random,
   })  : _random = random,
-        _speed = species.minSpeed +
-            random.nextDouble() * (species.maxSpeed - species.minSpeed),
+        _baseSpeed = state.species.minSpeed +
+            random.nextDouble() *
+                (state.species.maxSpeed - state.species.minSpeed),
         _wavePhase = random.nextDouble() * pi * 2,
         super(
           size: Vector2(
-            species.baseWidth * genome.bodyScale,
-            species.baseHeight * genome.bodyScale,
+            state.species.baseWidth *
+                state.genome.bodyScale *
+                state.visualScale,
+            state.species.baseHeight *
+                state.genome.bodyScale *
+                state.visualScale,
           ),
           anchor: Anchor.center,
         );
 
-  final FishSpecies species;
-  final FishGenome genome;
+  final FishState state;
   final Random _random;
-  final double _speed;
+  final double _baseSpeed;
   final double _wavePhase;
 
   double _elapsed = 0;
   double _direction = 1;
+  double _feedGlow = 0;
+
+  void celebrateFeeding() {
+    _feedGlow = 1;
+  }
 
   @override
   void onMount() {
@@ -41,8 +49,8 @@ class FishComponent extends PositionComponent {
     }
 
     final usableWidth = max(1.0, tank.width - width);
-    final minY = tank.height * 0.18 + height / 2;
-    final maxY = max(minY + 1.0, tank.height * 0.82 - height / 2);
+    final minY = tank.height * 0.17 + height / 2;
+    final maxY = max(minY + 1, tank.height * 0.81 - height / 2);
 
     position = Vector2(
       width / 2 + _random.nextDouble() * usableWidth,
@@ -54,15 +62,27 @@ class FishComponent extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    state.tick(dt);
     _elapsed += dt;
+    _feedGlow = max(0, _feedGlow - dt * 1.7);
+
+    final targetScale = state.visualScale;
+    size.setValues(
+      state.species.baseWidth * state.genome.bodyScale * targetScale,
+      state.species.baseHeight * state.genome.bodyScale * targetScale,
+    );
 
     final tank = parent;
     if (tank is! PositionComponent) {
       return;
     }
 
-    x += _direction * _speed * dt;
-    y += sin(_elapsed * 1.7 + _wavePhase) * 2.4 * dt;
+    final hungerSpeed = 0.48 + state.hunger * 0.52;
+    final healthSpeed = 0.4 + state.health * 0.6;
+    final speed = _baseSpeed * hungerSpeed * healthSpeed;
+
+    x += _direction * speed * dt;
+    y += sin(_elapsed * 1.8 + _wavePhase) * 2.6 * dt;
 
     final left = width / 2;
     final right = max(left, tank.width - width / 2);
@@ -74,7 +94,7 @@ class FishComponent extends PositionComponent {
       _direction = -1;
     }
 
-    final top = tank.height * 0.15 + height / 2;
+    final top = tank.height * 0.14 + height / 2;
     final bottom = max(top, tank.height * 0.84 - height / 2);
     y = y.clamp(top, bottom).toDouble();
   }
@@ -89,67 +109,175 @@ class FishComponent extends PositionComponent {
       canvas.scale(-1, 1);
     }
 
+    final genome = state.genome;
     final primary = Color(genome.primaryColor);
     final secondary = Color(genome.secondaryColor);
-    final bodyRect = Rect.fromLTWH(
-      width * 0.20,
-      height * 0.13,
-      width * 0.68,
-      height * 0.74,
-    );
 
-    final tailTop = (0.08 / genome.finScale).clamp(0.02, 0.2).toDouble();
-    final tailBottom =
-        (0.92 + (genome.finScale - 1) * 0.08).clamp(0.8, 0.98).toDouble();
     final tail = Path()
-      ..moveTo(width * 0.25, height * 0.50)
-      ..lineTo(0, height * tailTop)
-      ..lineTo(0, height * tailBottom)
+      ..moveTo(width * 0.27, height * 0.49)
+      ..quadraticBezierTo(
+        width * 0.08,
+        height * 0.17,
+        0,
+        height * (0.08 / genome.finScale).clamp(0.025, 0.18),
+      )
+      ..quadraticBezierTo(
+        width * 0.08,
+        height * 0.50,
+        0,
+        height * (0.92 + (genome.finScale - 1) * 0.07).clamp(0.82, 0.98),
+      )
+      ..quadraticBezierTo(
+        width * 0.10,
+        height * 0.80,
+        width * 0.27,
+        height * 0.52,
+      )
       ..close();
     canvas.drawPath(tail, Paint()..color = secondary);
 
-    final dorsalTop =
-        (0.02 / genome.finScale).clamp(0.0, 0.1).toDouble();
     final dorsal = Path()
-      ..moveTo(width * 0.38, height * 0.20)
-      ..lineTo(width * 0.54, height * dorsalTop)
-      ..lineTo(width * 0.67, height * 0.22)
+      ..moveTo(width * 0.39, height * 0.24)
+      ..quadraticBezierTo(
+        width * 0.50,
+        height * (0.01 / genome.finScale).clamp(0, 0.09),
+        width * 0.67,
+        height * 0.23,
+      )
       ..close();
     canvas.drawPath(dorsal, Paint()..color = secondary);
 
-    canvas.drawOval(bodyRect, Paint()..color = primary);
-    _drawPattern(canvas, bodyRect, secondary);
+    final ventral = Path()
+      ..moveTo(width * 0.46, height * 0.75)
+      ..quadraticBezierTo(
+        width * 0.55,
+        height * (0.98 * genome.finScale).clamp(0.84, 1.0),
+        width * 0.66,
+        height * 0.75,
+      )
+      ..close();
+    canvas.drawPath(ventral, Paint()..color = secondary.withAlpha(220));
 
-    if (genome.shimmer) {
+    final body = Path()
+      ..moveTo(width * 0.20, height * 0.50)
+      ..cubicTo(
+        width * 0.31,
+        height * 0.16,
+        width * 0.66,
+        height * 0.10,
+        width * 0.91,
+        height * 0.43,
+      )
+      ..quadraticBezierTo(
+        width * 0.96,
+        height * 0.50,
+        width * 0.91,
+        height * 0.57,
+      )
+      ..cubicTo(
+        width * 0.66,
+        height * 0.90,
+        width * 0.31,
+        height * 0.84,
+        width * 0.20,
+        height * 0.50,
+      )
+      ..close();
+
+    canvas.drawPath(body, Paint()..color = primary);
+
+    final bodyBounds = body.getBounds();
+    _drawPattern(canvas, body, bodyBounds, secondary);
+
+    final pectoral = Path()
+      ..moveTo(width * 0.58, height * 0.52)
+      ..quadraticBezierTo(
+        width * 0.46,
+        height * 0.68,
+        width * 0.66,
+        height * 0.68,
+      )
+      ..close();
+    canvas.drawPath(pectoral, Paint()..color = secondary.withAlpha(185));
+
+    canvas.drawPath(
+      body,
+      Paint()
+        ..color = const Color(0xB3162D3D)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.9,
+    );
+
+    canvas.drawOval(
+      Rect.fromLTWH(
+        width * 0.34,
+        height * 0.23,
+        width * 0.39,
+        height * 0.16,
+      ),
+      Paint()..color = const Color(0x35FFFFFF),
+    );
+
+    if (genome.shimmer || _feedGlow > 0) {
+      final alpha = genome.shimmer ? 76 : (72 * _feedGlow).round();
       canvas.drawOval(
         Rect.fromLTWH(
-          bodyRect.left + bodyRect.width * 0.15,
-          bodyRect.top + bodyRect.height * 0.12,
-          bodyRect.width * 0.52,
-          bodyRect.height * 0.22,
+          width * 0.38,
+          height * 0.18,
+          width * 0.34,
+          height * 0.13,
         ),
-        Paint()..color = const Color(0xFFFFFFFF).withAlpha(70),
+        Paint()..color = Color.fromARGB(alpha, 255, 255, 255),
       );
     }
 
-    canvas.drawOval(
-      bodyRect,
-      Paint()
-        ..color = const Color(0xAA102A43)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-
-    final eyeCenter = Offset(width * 0.76, height * 0.40);
+    final eyeCenter = Offset(width * 0.80, height * 0.41);
     canvas.drawCircle(
       eyeCenter,
-      height * 0.095,
+      height * 0.105,
+      Paint()..color = const Color(0xFFF8FDFF),
+    );
+    canvas.drawCircle(
+      eyeCenter,
+      height * 0.050,
+      Paint()..color = const Color(0xFF102331),
+    );
+    canvas.drawCircle(
+      Offset(eyeCenter.dx + height * 0.016, eyeCenter.dy - height * 0.019),
+      height * 0.015,
       Paint()..color = const Color(0xFFFFFFFF),
     );
-    canvas.drawCircle(
-      eyeCenter,
-      height * 0.045,
-      Paint()..color = const Color(0xFF132238),
+
+    canvas.drawArc(
+      Rect.fromLTWH(
+        width * 0.84,
+        height * 0.49,
+        width * 0.08,
+        height * 0.10,
+      ),
+      0.35,
+      1.15,
+      false,
+      Paint()
+        ..color = const Color(0x99102230)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.75,
+    );
+
+    canvas.drawArc(
+      Rect.fromLTWH(
+        width * 0.68,
+        height * 0.31,
+        width * 0.13,
+        height * 0.38,
+      ),
+      -1.15,
+      2.3,
+      false,
+      Paint()
+        ..color = const Color(0x65102230)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7,
     );
 
     if (_direction < 0) {
@@ -157,78 +285,66 @@ class FishComponent extends PositionComponent {
     }
   }
 
-  void _drawPattern(Canvas canvas, Rect bodyRect, Color secondary) {
-    if (genome.pattern == FishPattern.solid) {
+  void _drawPattern(
+    Canvas canvas,
+    Path body,
+    Rect bodyRect,
+    Color secondary,
+  ) {
+    final pattern = state.genome.pattern;
+    if (pattern == FishPattern.solid) {
       return;
     }
 
     canvas.save();
-    canvas.clipPath(Path()..addOval(bodyRect));
+    canvas.clipPath(body);
     final patternPaint = Paint()..color = secondary.withAlpha(190);
 
-    switch (genome.pattern) {
-      case FishPattern.solid:
-        break;
-      case FishPattern.stripes:
-        for (var i = 0; i < 3; i++) {
-          final x = bodyRect.left + bodyRect.width * (0.28 + i * 0.18);
-          canvas.drawRect(
+    if (pattern == FishPattern.stripes) {
+      for (var i = 0; i < 3; i++) {
+        final x = bodyRect.left + bodyRect.width * (0.25 + i * 0.19);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
             Rect.fromLTWH(
               x,
-              bodyRect.top,
-              bodyRect.width * 0.08,
-              bodyRect.height,
+              bodyRect.top - 2,
+              bodyRect.width * 0.075,
+              bodyRect.height + 4,
             ),
-            patternPaint,
-          );
-        }
-        break;
-      case FishPattern.spots:
-        canvas.drawCircle(
-          Offset(
-            bodyRect.left + bodyRect.width * 0.35,
-            bodyRect.top + bodyRect.height * 0.35,
-          ),
-          bodyRect.height * 0.12,
-          patternPaint,
-        );
-        canvas.drawCircle(
-          Offset(
-            bodyRect.left + bodyRect.width * 0.56,
-            bodyRect.top + bodyRect.height * 0.62,
-          ),
-          bodyRect.height * 0.10,
-          patternPaint,
-        );
-        canvas.drawCircle(
-          Offset(
-            bodyRect.left + bodyRect.width * 0.68,
-            bodyRect.top + bodyRect.height * 0.30,
-          ),
-          bodyRect.height * 0.08,
-          patternPaint,
-        );
-        break;
-      case FishPattern.patches:
-        canvas.drawOval(
-          Rect.fromLTWH(
-            bodyRect.left + bodyRect.width * 0.20,
-            bodyRect.top - bodyRect.height * 0.05,
-            bodyRect.width * 0.30,
-            bodyRect.height * 0.55,
+            const Radius.circular(3),
           ),
           patternPaint,
         );
-        canvas.drawOval(
-          Rect.fromLTWH(
-            bodyRect.left + bodyRect.width * 0.55,
-            bodyRect.top + bodyRect.height * 0.48,
-            bodyRect.width * 0.28,
-            bodyRect.height * 0.42,
-          ),
-          patternPaint,
-        );
-        break;
+      }
+    } else if (pattern == FishPattern.spots) {
+      final spots = <Offset>[
+        Offset(bodyRect.left + bodyRect.width * 0.32, bodyRect.top + bodyRect.height * 0.34),
+        Offset(bodyRect.left + bodyRect.width * 0.52, bodyRect.top + bodyRect.height * 0.62),
+        Offset(bodyRect.left + bodyRect.width * 0.66, bodyRect.top + bodyRect.height * 0.29),
+      ];
+      final radii = <double>[0.12, 0.10, 0.075];
+      for (var i = 0; i < spots.length; i++) {
+        canvas.drawCircle(spots[i], bodyRect.height * radii[i], patternPaint);
+      }
+    } else if (pattern == FishPattern.patches) {
+      canvas.drawOval(
+        Rect.fromLTWH(
+          bodyRect.left + bodyRect.width * 0.14,
+          bodyRect.top - bodyRect.height * 0.08,
+          bodyRect.width * 0.32,
+          bodyRect.height * 0.58,
+        ),
+        patternPaint,
+      );
+      canvas.drawOval(
+        Rect.fromLTWH(
+          bodyRect.left + bodyRect.width * 0.53,
+          bodyRect.top + bodyRect.height * 0.47,
+          bodyRect.width * 0.27,
+          bodyRect.height * 0.43,
+        ),
+        patternPaint,
+      );
     }
 
     canvas.restore();
