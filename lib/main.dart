@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'game/agua_life_game.dart';
 import 'game/models/fish_selection.dart';
-import 'game/models/game_hud_state.dart';
+import 'game/models/legacy_action.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,18 +14,12 @@ class AguaLifeApp extends StatelessWidget {
   const AguaLifeApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Agua Life',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF42C6F5),
-      ),
-      home: const AguaLifeScreen(),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Agua Life',
+        theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+        home: const AguaLifeScreen(),
+      );
 }
 
 class AguaLifeScreen extends StatefulWidget {
@@ -36,411 +30,398 @@ class AguaLifeScreen extends StatefulWidget {
 }
 
 class _AguaLifeScreenState extends State<AguaLifeScreen> {
-  late final AguaLifeGame _game = AguaLifeGame();
+  late final AguaLifeGame game = AguaLifeGame();
+  bool menuOpen = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF071C28),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          GameWidget(game: _game),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: ValueListenableBuilder<GameHudState>(
-                    valueListenable: _game.hud,
-                    builder: (context, state, _) => _AquariumHud(state: state),
+      backgroundColor: const Color(0xFF061321),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0B2E4D), Color(0xFF06111E)],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: 352,
+                  height: 416,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      GameWidget(game: game),
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        width: 352,
+                        height: 56,
+                        child: _topBar(),
+                      ),
+                      Positioned(
+                        left: 104,
+                        top: 316,
+                        width: 144,
+                        height: 68,
+                        child: _isolation(),
+                      ),
+                      Positioned(
+                        left: 0,
+                        top: 384,
+                        width: 352,
+                        height: 32,
+                        child: _softKeys(),
+                      ),
+                      if (menuOpen) Positioned.fill(child: _menu()),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ValueListenableBuilder<FishSelection?>(
-                    valueListenable: _game.selectedFish,
-                    builder: (context, fish, _) {
-                      if (fish == null) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _FishInspector(fish: fish),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: ValueListenableBuilder<GameHudState>(
-                    valueListenable: _game.hud,
-                    builder: (context, state, _) {
-                      return _BottomControls(
-                        food: state.food,
-                        onFeed: () {
-                          final fed = _game.feedFish();
-                          if (!fed && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Sem comida no estoque.'),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-class _AquariumHud extends StatelessWidget {
-  const _AquariumHud({required this.state});
+  Widget _topBar() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        game.fishMode,
+        game.action,
+        game.focusedFish,
+        game.isolationFish,
+        game.currentTankNumber,
+        game.hud,
+      ]),
+      builder: (context, _) {
+        if (game.fishMode.value == FishInteractionMode.browsing) {
+          final fish = game.focusedFish.value;
+          final age = ((fish?.growthProgress ?? 0) * 20).round();
+          final fed = ((fish?.hunger ?? 0) * 100).round();
+          final health = ((fish?.health ?? 0) * 100).round();
+          return _bar(
+            Row(
+              children: [
+                _arrow(Icons.chevron_left_rounded, () => game.browseFish(-1)),
+                Expanded(
+                  flex: 3,
+                  child: _stat(fish?.speciesName ?? 'NO FISH', 'AGE $age'),
+                ),
+                Expanded(child: _stat('FED', '$fed%')),
+                Expanded(child: _stat('HEALTH', '$health%')),
+                _arrow(Icons.chevron_right_rounded, () => game.browseFish(1)),
+              ],
+            ),
+          );
+        }
 
-  final GameHudState state;
+        final selected = game.fishMode.value == FishInteractionMode.selected;
+        final actions = selected
+            ? <LegacyAction>[
+                LegacyAction.moveTank,
+                LegacyAction.species,
+                game.isolationFish.value == null
+                    ? LegacyAction.isolate
+                    : LegacyAction.breed,
+                LegacyAction.trash,
+                if (game.isolationFish.value != null) LegacyAction.release,
+              ]
+            : <LegacyAction>[
+                LegacyAction.food,
+                LegacyAction.shop,
+                LegacyAction.switchTank,
+                LegacyAction.saleTank,
+              ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xD9163445),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x665DE5FF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+        return _bar(
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Agua Life',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
+              SizedBox(
+                width: 44,
+                child: Center(
+                  child: Text(
+                    selected
+                        ? (game.focusedFish.value?.speciesName ?? 'FISH')
+                        : 'T${game.currentTankNumber.value}',
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
                   ),
                 ),
               ),
-              _InfoChip(
-                icon: Icons.monetization_on_rounded,
-                label: '${state.coins}',
-              ),
-              const SizedBox(width: 7),
-              _InfoChip(
-                icon: Icons.set_meal_rounded,
-                label: '${state.fishCount}',
-              ),
-              const SizedBox(width: 7),
-              _InfoChip(
-                icon: Icons.rice_bowl_rounded,
-                label: '${state.food}',
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
               Expanded(
-                child: _StatusMeter(
-                  label: 'Fome',
-                  value: state.averageHunger,
-                  icon: Icons.restaurant_rounded,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatusMeter(
-                  label: 'Saúde',
-                  value: state.averageHealth,
-                  icon: Icons.favorite_rounded,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: actions
+                      .map((a) => _actionSlot(
+                            a,
+                            badge: a == LegacyAction.food
+                                ? '${game.hud.value.food}'
+                                : null,
+                          ))
+                      .toList(growable: false),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
-}
 
-class _FishInspector extends StatelessWidget {
-  const _FishInspector({required this.fish});
-
-  final FishSelection fish;
-
-  @override
-  Widget build(BuildContext context) {
-    final growth = (fish.growthProgress * 100).round();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
-      decoration: BoxDecoration(
-        color: const Color(0xE51A3545),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x884DE5FF)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.water_rounded,
-                size: 18,
-                color: Color(0xFF75E9FF),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  fish.speciesName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (fish.shimmer)
-                const _TraitBadge(label: 'Raro ✦')
-              else
-                _TraitBadge(label: fish.patternLabel),
-            ],
+  Widget _bar(Widget child) => DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF35205F), Color(0xFF241641)],
           ),
-          const SizedBox(height: 7),
-          Row(
-            children: [
-              Expanded(
-                child: _TinyStat(
-                  label: 'Crescimento',
-                  value: '$growth%',
-                ),
-              ),
-              Expanded(
-                child: _TinyStat(
-                  label: 'Corpo',
-                  value: '${fish.bodyScale.toStringAsFixed(2)}×',
-                ),
-              ),
-              Expanded(
-                child: _TinyStat(
-                  label: 'Nadadeiras',
-                  value: '${fish.finScale.toStringAsFixed(2)}×',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Row(
-            children: [
-              Expanded(
-                child: _StatusMeter(
-                  label: 'Fome',
-                  value: fish.hunger,
-                  icon: Icons.restaurant_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _StatusMeter(
-                  label: 'Saúde',
-                  value: fish.health,
-                  icon: Icons.favorite_rounded,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TraitBadge extends StatelessWidget {
-  const _TraitBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xAA28566A),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
+          border: Border(bottom: BorderSide(color: Color(0xFF6C57A7), width: 2)),
         ),
-      ),
-    );
-  }
-}
+        child: child,
+      );
 
-class _TinyStat extends StatelessWidget {
-  const _TinyStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFFB8D4DF),
-            fontSize: 10,
+  Widget _actionSlot(LegacyAction action, {String? badge}) {
+    final data = switch (action) {
+      LegacyAction.food => (Icons.set_meal_rounded, 'FOOD'),
+      LegacyAction.shop => (Icons.shopping_cart_rounded, 'SHOP'),
+      LegacyAction.switchTank => (Icons.swap_horiz_rounded, 'TANK'),
+      LegacyAction.saleTank => (Icons.sell_rounded, 'SALE'),
+      LegacyAction.moveTank => (Icons.move_down_rounded, 'MOVE'),
+      LegacyAction.species => (Icons.info_outline_rounded, 'SPECIES'),
+      LegacyAction.isolate => (Icons.inventory_2_outlined, 'ISOLATE'),
+      LegacyAction.release => (Icons.outbox_rounded, 'RELEASE'),
+      LegacyAction.breed => (Icons.favorite_rounded, 'BREED'),
+      LegacyAction.trash => (Icons.delete_outline_rounded, 'TRASH'),
+    };
+    final active = game.action.value == action;
+    return InkWell(
+      onTap: () => game.chooseAction(action),
+      child: Container(
+        width: 50,
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF633AA5) : Colors.transparent,
+          border: Border.all(
+            color: active ? const Color(0xFF8BF0FF) : Colors.transparent,
           ),
+          borderRadius: BorderRadius.circular(5),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0x882A5265),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFFFFD55A)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusMeter extends StatelessWidget {
-  const _StatusMeter({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final double value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final safeValue = value.clamp(0, 1).toDouble();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        child: Stack(
           children: [
-            Icon(icon, size: 14, color: const Color(0xFFC9F5FF)),
-            const SizedBox(width: 4),
-            Text(
-              '$label ${(safeValue * 100).round()}%',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(data.$1, size: 20),
+                  Text(data.$2,
+                      style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+            if (badge != null)
+              Positioned(
+                right: 1,
+                top: 1,
+                child: Text(badge,
+                    style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w900)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(String title, String value) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 8, color: Color(0xFFBEAEE9))),
+          Text(value,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+        ],
+      );
+
+  Widget _arrow(IconData icon, VoidCallback onTap) => InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 34,
+          child: Icon(icon, size: 27, color: const Color(0xFF75E7FF)),
+        ),
+      );
+
+  Widget _isolation() {
+    return ValueListenableBuilder<FishSelection?>(
+      valueListenable: game.isolationFish,
+      builder: (context, fish, _) => GestureDetector(
+        onTap: fish == null ? null : game.selectIsolation,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/art/tank_freshwater.webp',
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 14,
+              child: ColoredBox(color: Color(0xFF101F2E)),
+            ),
+            if (fish != null)
+              Center(
+                child: FractionallySizedBox(
+                  widthFactor: 0.34,
+                  heightFactor: 0.52,
+                  child: Image.asset(
+                    'assets/images/art/fish_${fish.speciesName.toLowerCase()}.webp',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 3,
+              bottom: 2,
+              child: Text(
+                fish == null ? 'ISOLATION' : fish.speciesName.toUpperCase(),
+                style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.w900),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: safeValue,
-            minHeight: 6,
-            backgroundColor: const Color(0x66314A57),
-            color: const Color(0xFF60E5D0),
-          ),
-        ),
-      ],
+      ),
     );
   }
-}
 
-class _BottomControls extends StatelessWidget {
-  const _BottomControls({required this.food, required this.onFeed});
-
-  final int food;
-  final VoidCallback onFeed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xDB102B3A),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x554EDAF2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: food > 0 ? onFeed : null,
-              icon: const Icon(Icons.restaurant_rounded),
-              label: Text('Alimentar  ($food)'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+  Widget _softKeys() {
+    return ValueListenableBuilder<FishInteractionMode>(
+      valueListenable: game.fishMode,
+      builder: (context, mode, _) {
+        return ColoredBox(
+          color: const Color(0xFF17142A),
+          child: Row(
+            children: [
+              Expanded(
+                child: _soft(
+                  mode == FishInteractionMode.none ? 'MENU' : 'BACK',
+                  mode == FishInteractionMode.none
+                      ? () => setState(() => menuOpen = true)
+                      : game.cancelFishInteraction,
+                ),
               ),
+              Expanded(
+                child: _soft(
+                  mode == FishInteractionMode.browsing ? 'SELECT' : 'ACTION',
+                  _handleAction,
+                  active: true,
+                ),
+              ),
+              Expanded(child: _soft('FISH', game.enterFishBrowse)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _soft(String text, VoidCallback onTap, {bool active = false}) => InkWell(
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          color: active ? const Color(0xFF282049) : Colors.transparent,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: active ? const Color(0xFF85EDFF) : Colors.white,
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(
-            onPressed: null,
-            tooltip: 'Loja — em desenvolvimento',
-            icon: const Icon(Icons.storefront_rounded),
+        ),
+      );
+
+  Widget _menu() {
+    const items = [
+      'RESUME',
+      'START NEW GAME',
+      'OPTIONS',
+      'TROPHY',
+      'STATS',
+      'HELP',
+      'ABOUT',
+      'SAVE & EXIT',
+    ];
+    return Material(
+      color: const Color(0xD0000710),
+      child: Center(
+        child: FractionallySizedBox(
+          widthFactor: 0.67,
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A226B),
+              border: Border.all(color: const Color(0xFFA592D4), width: 2),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: items
+                  .map((item) => InkWell(
+                        onTap: item == 'RESUME'
+                            ? () => setState(() => menuOpen = false)
+                            : null,
+                        child: SizedBox(
+                          height: 28,
+                          child: Center(
+                            child: Text(item,
+                                style: const TextStyle(
+                                    fontSize: 9, fontWeight: FontWeight.w900)),
+                          ),
+                        ),
+                      ))
+                  .toList(growable: false),
+            ),
           ),
-          const SizedBox(width: 6),
-          IconButton.filledTonal(
-            onPressed: null,
-            tooltip: 'Peixes — em desenvolvimento',
-            icon: const Icon(Icons.pets_rounded),
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _handleAction() async {
+    final before = game.action.value;
+    final mode = game.fishMode.value;
+    final ok = await game.pressAction();
+    if (!mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ação indisponível nesta etapa da reconstrução.'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
+    if (mode == FishInteractionMode.selected &&
+        (before == LegacyAction.breed || before == LegacyAction.species)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta tela ainda está sendo portada do J2ME.'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   }
 }

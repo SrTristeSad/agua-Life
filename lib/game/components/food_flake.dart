@@ -7,7 +7,7 @@ class FoodFlake extends PositionComponent {
   FoodFlake({
     required Vector2 start,
     required Random random,
-  })  : _speed = 18 + random.nextDouble() * 18,
+  })  : _speed = 16 + random.nextDouble() * 15,
         _phase = random.nextDouble() * pi * 2,
         _drift = 2 + random.nextDouble() * 4,
         super(
@@ -20,16 +20,25 @@ class FoodFlake extends PositionComponent {
   final double _phase;
   final double _drift;
   double _elapsed = 0;
+  bool consumed = false;
+
+  void consume() {
+    if (consumed) return;
+    consumed = true;
+    removeFromParent();
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
+    if (consumed) return;
+
     _elapsed += dt;
     y += _speed * dt;
     x += sin(_elapsed * 2.8 + _phase) * _drift * dt;
 
     final tank = parent;
-    if (tank is PositionComponent && y > tank.height * 0.86) {
+    if (tank is PositionComponent && y > tank.height * 0.94) {
       removeFromParent();
     }
   }
@@ -43,7 +52,7 @@ class FoodFlake extends PositionComponent {
     );
     canvas.drawOval(
       Rect.fromLTWH(width * 0.15, height * 0.12, width * 0.5, height * 0.35),
-      Paint()..color = const Color(0x55FFFFFF),
+      Paint()..color = const Color(0x66FFFFFF),
     );
   }
 }
