@@ -10,7 +10,7 @@ class AguaLifeGame extends FlameGame {
 
   TankScene? _tankScene;
   double _hudTimer = 0;
-  int _coins = 250;
+  final int _coins = 250;
   int _food = 12;
 
   @override
