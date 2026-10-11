@@ -2,14 +2,16 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 
 import '../models/fish_genome.dart';
 import '../models/fish_state.dart';
 
-class FishComponent extends PositionComponent {
+class FishComponent extends PositionComponent with TapCallbacks {
   FishComponent({
     required this.state,
     required Random random,
+    this.onSelected,
   })  : _random = random,
         _baseSpeed = state.species.minSpeed +
             random.nextDouble() *
@@ -28,6 +30,7 @@ class FishComponent extends PositionComponent {
         );
 
   final FishState state;
+  final void Function(FishComponent fish)? onSelected;
   final Random _random;
   final double _baseSpeed;
   final double _wavePhase;
@@ -35,9 +38,28 @@ class FishComponent extends PositionComponent {
   double _elapsed = 0;
   double _direction = 1;
   double _feedGlow = 0;
+  bool _selected = false;
 
   void celebrateFeeding() {
     _feedGlow = 1;
+  }
+
+  void setSelected(bool selected) {
+    _selected = selected;
+  }
+
+  @override
+  bool containsLocalPoint(Vector2 point) {
+    const padding = 8.0;
+    return point.x >= -padding &&
+        point.x <= width + padding &&
+        point.y >= -padding &&
+        point.y <= height + padding;
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    onSelected?.call(this);
   }
 
   @override
@@ -102,6 +124,22 @@ class FishComponent extends PositionComponent {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+
+    if (_selected) {
+      final pulse = 0.5 + sin(_elapsed * 5) * 0.18;
+      canvas.drawOval(
+        Rect.fromLTWH(-4, -4, width + 8, height + 8),
+        Paint()
+          ..color = Color.fromARGB(
+            (150 * pulse).round(),
+            102,
+            232,
+            255,
+          )
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.8,
+      );
+    }
 
     if (_direction < 0) {
       canvas.save();
