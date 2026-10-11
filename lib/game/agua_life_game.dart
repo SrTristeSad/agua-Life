@@ -2,13 +2,18 @@ import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
 
 import 'components/tank_scene.dart';
+import 'models/fish_selection.dart';
+import 'models/fish_state.dart';
 import 'models/game_hud_state.dart';
 
 class AguaLifeGame extends FlameGame {
   final ValueNotifier<GameHudState> hud =
       ValueNotifier<GameHudState>(GameHudState.empty);
+  final ValueNotifier<FishSelection?> selectedFish =
+      ValueNotifier<FishSelection?>(null);
 
   TankScene? _tankScene;
+  FishState? _selectedFishState;
   double _hudTimer = 0;
   final int _coins = 250;
   int _food = 12;
@@ -17,7 +22,7 @@ class AguaLifeGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final tankScene = TankScene()..size = size;
+    final tankScene = TankScene(onFishSelected: _onFishSelected)..size = size;
     _tankScene = tankScene;
     await add(tankScene);
     _publishHud();
@@ -54,6 +59,11 @@ class AguaLifeGame extends FlameGame {
     return true;
   }
 
+  void _onFishSelected(FishState state) {
+    _selectedFishState = state;
+    selectedFish.value = FishSelection.fromState(state);
+  }
+
   void _publishHud() {
     final tank = _tankScene;
     hud.value = GameHudState(
@@ -63,5 +73,10 @@ class AguaLifeGame extends FlameGame {
       averageHunger: tank?.averageHunger ?? 1,
       averageHealth: tank?.averageHealth ?? 1,
     );
+
+    final selected = _selectedFishState;
+    if (selected != null) {
+      selectedFish.value = FishSelection.fromState(selected);
+    }
   }
 }
