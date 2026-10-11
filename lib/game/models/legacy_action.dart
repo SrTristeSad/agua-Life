@@ -5,6 +5,7 @@ enum LegacyAction {
   saleTank,
   useSupply,
   moveTank,
+  moveSale,
   species,
   isolate,
   release,
