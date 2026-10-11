@@ -63,7 +63,7 @@
 ## Milestone 5 — Release preparation
 
 - [ ] Android project wrapper and signing configuration
-- [ ] Downloadable Android preview APK
+- [x] Downloadable Android preview APK
 - [ ] Performance profiling on low/mid-range phones
 - [ ] Save migration tests
 - [ ] Accessibility and text scaling checks
