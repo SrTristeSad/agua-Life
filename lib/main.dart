@@ -104,7 +104,7 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
       builder: (context, _) {
         if (game.fishMode.value == FishInteractionMode.browsing) {
           final fish = game.focusedFish.value;
-          final age = ((fish?.growthProgress ?? 0) * 20).round();
+          final age = fish?.age ?? 0;
           final fed = ((fish?.hunger ?? 0) * 100).round();
           final health = ((fish?.health ?? 0) * 100).round();
           return _bar(
@@ -145,15 +145,16 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
           Row(
             children: [
               SizedBox(
-                width: 44,
+                width: 58,
                 child: Center(
                   child: Text(
                     selected
                         ? (game.focusedFish.value?.speciesName ?? 'FISH')
                         : 'T${game.currentTankNumber.value}',
-                    maxLines: 1,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
                     overflow: TextOverflow.fade,
-                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                    style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.w900),
                   ),
                 ),
               ),
@@ -204,7 +205,7 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
     return InkWell(
       onTap: () => game.chooseAction(action),
       child: Container(
-        width: 50,
+        width: 47,
         margin: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
           color: active ? const Color(0xFF633AA5) : Colors.transparent,
@@ -272,7 +273,7 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
             ),
-            Positioned(
+            const Positioned(
               left: 0,
               right: 0,
               top: 0,
@@ -285,16 +286,33 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
                   widthFactor: 0.34,
                   heightFactor: 0.52,
                   child: Image.asset(
-                    'assets/images/art/fish_${fish.speciesName.toLowerCase()}.webp',
+                    _visualAssetForBreed(fish),
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
+            if (fish?.pregnant == true)
+              const Positioned(
+                right: 5,
+                top: 17,
+                child: Icon(
+                  Icons.egg_alt_rounded,
+                  size: 16,
+                  color: Color(0xFFFFF3A0),
+                ),
+              ),
             Positioned(
               left: 3,
+              right: 3,
               bottom: 2,
               child: Text(
-                fish == null ? 'ISOLATION' : fish.speciesName.toUpperCase(),
+                fish == null
+                    ? 'ISOLATION'
+                    : fish.pregnant
+                        ? 'PREGNANT  ${fish.pregnancyAgesRemaining}/3'
+                        : fish.speciesName.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 6.5, fontWeight: FontWeight.w900),
               ),
             ),
@@ -302,6 +320,16 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
         ),
       ),
     );
+  }
+
+  String _visualAssetForBreed(FishSelection fish) {
+    final key = (fish.bodyIndex * 3 + fish.finIndex) % 4;
+    return switch (key) {
+      0 => 'assets/images/art/fish_sunny.webp',
+      1 => 'assets/images/art/fish_zephyr.webp',
+      2 => 'assets/images/art/fish_luna.webp',
+      _ => 'assets/images/art/fish_shadow.webp',
+    };
   }
 
   Widget _softKeys() {
@@ -400,26 +428,36 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
 
   Future<void> _handleAction() async {
     final before = game.action.value;
-    final mode = game.fishMode.value;
     final ok = await game.pressAction();
     if (!mounted) return;
+
+    final message = game.eventMessage.value;
+    if (message != null) {
+      game.clearEventMessage();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ação indisponível nesta etapa da reconstrução.'),
+          content: Text('Ação indisponível.'),
           duration: Duration(seconds: 1),
         ),
       );
       return;
     }
 
-    if (mode == FishInteractionMode.selected &&
-        (before == LegacyAction.breed || before == LegacyAction.species)) {
+    if (before == LegacyAction.species) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Esta tela ainda está sendo portada do J2ME.'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: Text(game.focusedFish.value?.speciesName ?? 'SPECIES'),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
