@@ -14,9 +14,10 @@
 
 ## Milestone 1 — Living aquarium
 
-- [ ] Fish age and growth stages
-- [ ] Hunger and feeding
-- [ ] Health and disease state
+- [x] Fish age and growth stages
+- [x] Hunger and feeding
+- [x] Health state
+- [ ] Disease system and medicine
 - [ ] Death / removal rules
 - [ ] Tank cleanliness and water quality
 - [ ] Time-based simulation separated from rendering
@@ -25,10 +26,10 @@
 
 ## Milestone 2 — Management UI
 
-- [ ] Main HUD
+- [x] Main HUD
 - [ ] Fish inspection card
 - [ ] Inventory
-- [ ] Food and medicine
+- [ ] Food and medicine inventory
 - [ ] Shop
 - [ ] Economy and selling
 - [ ] Isolation / breeding tank
@@ -40,7 +41,7 @@
 - [ ] Pregnancy / egg lifecycle
 - [ ] Family lineage
 - [ ] Genetic history
-- [ ] Rare mutations
+- [x] Rare genetic mutation foundation
 - [ ] Cross-species compatibility rules
 - [ ] Discovery book / collection
 - [ ] Rare and secret species
@@ -52,6 +53,7 @@
 - [ ] Tail and fin layers
 - [ ] Pattern masks
 - [ ] High-resolution palette variants
+- [x] Procedural prototype renderer for genetic variation
 - [ ] Growth-stage artwork
 - [ ] Item / shop art
 - [ ] Decorations
