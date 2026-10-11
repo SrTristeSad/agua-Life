@@ -16,7 +16,7 @@ Do not invent new gameplay, new navigation, new HUD structure, new tank layout, 
 - [x] One aquarium is shown at a time; tanks are switched instead of displayed simultaneously.
 - [x] Top action bar, bottom isolation area and softkey-style controls restored as the base interaction layout.
 - [ ] Reproduce the complete menu hierarchy and navigation flow.
-- [ ] Reproduce the exact shop/supplies presentation and interaction flow.
+- [x] Supplies screen navigation/purchase foundation is functional; final redrawn supply art/layout parity is still pending.
 - [x] Reproduce the fish browsing/status interaction foundation.
 - [x] Reproduce the isolation/breeding placement and selection foundation.
 - [ ] Reproduce the same sale-tank presentation.
@@ -44,12 +44,12 @@ Only the art/rendering quality may be modernized:
 - [x] Normal-speed age timing recovered from bytecode: one age step per 600 seconds.
 - [x] FED/HEALTH advance on legacy age steps instead of draining every rendered second.
 - [x] Baseline level-1 FED behavior recovered: one FED point is removed per age step.
+- [x] Food-research level 2/3 FED probability logic recovered in the simulation service.
 - [x] Starvation baseline recovered: FED is clamped to zero at <=2 and HEALTH loses one point.
-- [x] Food is dropped into the tank as visible flakes; exact remaining food-hit/research behavior is still being reconstructed.
-- [ ] Food research level 2/3 probability modifiers.
-- [ ] Sustenance Magic Fish feeding modifier.
-- [ ] Exact environment-driven HEALTH changes.
-- [ ] Real-time clock separated from rendering.
+- [x] Environment-driven HEALTH deltas for legacy body/fin families and research levels recovered.
+- [x] Food is dropped into the tank as visible flakes; exact remaining food-hit modifiers are still being reconstructed.
+- [ ] Sustenance Magic Fish feeding modifier activation/progression.
+- [x] Tank simulation is independent of rendering; off-screen tanks continue advancing.
 - [ ] Offline progression while the app is closed.
 - [x] Tank capacity restored to 18 fish.
 - [x] Full-tank birth behavior foundation: newborn is not added when the tank is full.
@@ -69,6 +69,7 @@ Only the art/rendering quality may be modernized:
 - [x] Exact birth predicate recovered from m.h(): birth is ready only when target age < current age.
 - [x] The tutorial text says "up to 1/2 an hour"; where text and bytecode disagree, the bytecode predicate is authoritative for parity.
 - [x] Adult threshold and breeding eligibility use age 20.
+- [x] Sick fish cannot breed and infection clears the shared pregnancy physiological state.
 - [x] Birth into the mother's tank is functional.
 - [ ] Multiple-baby/fertility Magic Fish effect.
 - [ ] Mutation Magic Fish effect.
@@ -77,31 +78,38 @@ Only the art/rendering quality may be modernized:
 
 ## Disease and treatment
 
-- [ ] Ich disease.
-- [ ] Fungus disease.
-- [ ] Ich treatment.
-- [ ] Fungal treatment.
-- [ ] Fish vitamins.
-- [ ] Cure probability and research/environment modifiers.
-- [ ] Sick-fish isolation workflow.
+- [x] Ick disease state and visible white-speck symptom overlay.
+- [x] Fungus disease state and visible green-growth symptom overlay.
+- [x] Natural adult infection thresholds recovered, including contagion count and old-age modifier.
+- [x] Ick treatment applies to the current tank plus isolation fish.
+- [x] Fungal treatment applies to the current tank plus isolation fish.
+- [x] Exact normal cure roll recovered: random(100) < 40.
+- [x] Fish vitamins recovered: +6..+15 HEALTH per living fish in the selected tank.
+- [x] Sick-fish isolation remains functional.
+- [ ] Curing Magic Fish/tutorial forced-cure modifiers.
+- [ ] Remaining protective equipment modifiers activation/progression.
 
 ## Supplies and chemicals
 
+- [x] Original starting cash restored to $300.
+- [x] First five legacy prices recovered exactly: Ick $30, Fungus $40, Vitamins $140, Growth Hormone $380, Unknown Chemical $650.
+- [x] Original doses restored: first four items = 3 doses, Unknown Chemical = 1 dose.
+- [x] Original shared-slot behavior restored: Ick/Fungus share one slot; Vitamins/Growth/Chemical share another; replacement is confirmed.
+- [x] Growth hormone recovered: AGE += 2..6 when AGE <= 40.
+- [x] Unknown chemical recovered: per-living-fish mutation roll <=25, one family index moves by one with inward boundary behavior at 0/20.
+- [x] First five supply purchases are functional and purchased items appear on the tank top action bar.
 - [ ] Basic/common fish eggs.
 - [ ] Unusual fish eggs.
 - [ ] Rare fish eggs.
-- [ ] Growth hormone.
-- [ ] Mutation/unknown chemical.
-- [ ] Food inventory and feeding supplies.
-- [ ] Supply shop inventory and purchasing.
+- [ ] Remaining food inventory/purchasing parity.
 
 ## Research and equipment
 
-- [ ] Fish food research.
-- [ ] Fish environment research.
+- [ ] Fish food research purchasing/progression screen.
+- [ ] Fish environment research purchasing/progression screen.
 - [ ] Advertising research.
-- [ ] Aeration system.
-- [ ] Temperature regulator.
+- [ ] Aeration system purchase/equipment state.
+- [ ] Temperature regulator purchase/equipment state.
 - [ ] Cleaning snail.
 - [ ] Golden seahorse.
 - [ ] Nutrition plant.
@@ -118,10 +126,10 @@ Only the art/rendering quality may be modernized:
 - [ ] Customer arrival/sale simulation.
 - [ ] Popularity/interest behavior.
 - [ ] Customer feedback/comments behavior.
-- [ ] Money earned/spent tracking.
+- [ ] Money earned/spent statistics.
 - [ ] Average sale price.
 - [ ] Highest-priced fish record.
-- [ ] Economy values reconstructed from the J2ME behavior.
+- [ ] Remaining economy values reconstructed from J2ME behavior.
 
 ## Seven magic fish
 
