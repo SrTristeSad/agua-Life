@@ -10,9 +10,9 @@ import '../models/fish_state.dart';
 
 /// Animated pixel-art fish renderer.
 ///
-/// The legacy body/fin pair deterministically selects one of ten visual families.
-/// Gameplay still uses all 21 x 21 legacy combinations; this renderer only maps
-/// those combinations to the first production pixel-art animation set.
+/// Gameplay still uses all 21 x 21 legacy body/fin combinations. The current
+/// production art maps those combinations onto ten visual families while the
+/// original simulation data remains untouched.
 class FishComponent extends PositionComponent with TapCallbacks {
   FishComponent({
     required this.state,
@@ -23,7 +23,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
             random.nextDouble() *
                 (state.species.maxSpeed - state.species.minSpeed),
         _wavePhase = random.nextDouble() * pi * 2,
-        _animationOffset = random.nextInt(_frameCount),
+        _animationOffset = random.nextInt(_swimFrameCount),
         super(
           size: Vector2(
             state.species.baseWidth * state.genome.bodyScale * state.visualScale,
@@ -32,7 +32,9 @@ class FishComponent extends PositionComponent with TapCallbacks {
           anchor: Anchor.center,
         );
 
-  static const int _frameCount = 6;
+  static const int _swimFrameCount = 6;
+  static const int _eatFrameCount = 3;
+  static const int _babyFrameCount = 4;
   static const double _frameWidth = 16;
   static const double _frameHeight = 12;
 
@@ -43,11 +45,14 @@ class FishComponent extends PositionComponent with TapCallbacks {
   final double _wavePhase;
   final int _animationOffset;
 
-  ui.Image? _art;
+  ui.Image? _swimArt;
+  ui.Image? _eatArt;
+  ui.Image? _babyArt;
   int _atlasRow = 0;
   double _elapsed = 0;
   double _direction = 1;
   double _feedGlow = 0;
+  double _feedAnimation = 0;
   bool _selected = false;
 
   @override
@@ -55,13 +60,16 @@ class FishComponent extends PositionComponent with TapCallbacks {
     await super.onLoad();
     final visualIndex = (state.bodyIndex * 3 + state.finIndex) % 10;
     _atlasRow = visualIndex % 5;
-    final asset = visualIndex < 5
-        ? 'pixel/fish_swim_a.png'
-        : 'pixel/fish_swim_b.png';
-    _art = await Flame.images.load(asset);
+    final suffix = visualIndex < 5 ? 'a' : 'b';
+    _swimArt = await Flame.images.load('pixel/fish_swim_$suffix.png');
+    _eatArt = await Flame.images.load('pixel/fish_eat_$suffix.png');
+    _babyArt = await Flame.images.load('pixel/fish_baby_$suffix.png');
   }
 
-  void celebrateFeeding() => _feedGlow = 1;
+  void celebrateFeeding() {
+    _feedGlow = 1;
+    _feedAnimation = 0.72;
+  }
 
   void setSelected(bool selected) => _selected = selected;
 
@@ -98,6 +106,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
     super.update(dt);
     _elapsed += dt;
     _feedGlow = max(0, _feedGlow - dt * 1.7);
+    _feedAnimation = max(0, _feedAnimation - dt);
 
     final targetScale = state.visualScale;
     size.setValues(
@@ -145,7 +154,8 @@ class FishComponent extends PositionComponent with TapCallbacks {
       );
     }
 
-    final art = _art;
+    final animation = _animationForState();
+    final art = animation.$1;
     if (art == null) return;
 
     canvas.save();
@@ -157,7 +167,10 @@ class FishComponent extends PositionComponent with TapCallbacks {
     final bob = sin(_elapsed * 4.2 + _wavePhase) * 0.6;
     canvas.translate(0, bob);
 
-    final frame = ((_elapsed * 6).floor() + _animationOffset) % _frameCount;
+    final frameCount = animation.$2;
+    final framesPerSecond = animation.$3;
+    final frame = ((_elapsed * framesPerSecond).floor() + _animationOffset) %
+        frameCount;
     final source = ui.Rect.fromLTWH(
       frame * _frameWidth,
       _atlasRow * _frameHeight,
@@ -180,6 +193,16 @@ class FishComponent extends PositionComponent with TapCallbacks {
       );
     }
     canvas.restore();
+  }
+
+  (ui.Image?, int, double) _animationForState() {
+    if (!state.isAdult) {
+      return (_babyArt ?? _swimArt, _babyFrameCount, 7.0);
+    }
+    if (_feedAnimation > 0) {
+      return (_eatArt ?? _swimArt, _eatFrameCount, 9.0);
+    }
+    return (_swimArt, _swimFrameCount, 6.0);
   }
 
   void _renderDisease(ui.Canvas canvas) {
