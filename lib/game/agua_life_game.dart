@@ -6,12 +6,15 @@ import 'package:flutter/foundation.dart';
 
 import 'components/tank_scene.dart';
 import 'data/legacy_breed_catalog.dart';
+import 'data/legacy_supply_catalog.dart';
 import 'data/species_catalog.dart';
+import 'models/fish_disease.dart';
 import 'models/fish_genome.dart';
 import 'models/fish_selection.dart';
 import 'models/fish_state.dart';
 import 'models/game_hud_state.dart';
 import 'models/legacy_action.dart';
+import 'services/legacy_health_service.dart';
 
 class AguaLifeGame extends FlameGame {
   @override
@@ -31,16 +34,35 @@ class AguaLifeGame extends FlameGame {
       ValueNotifier<LegacyAction>(LegacyAction.food);
   final ValueNotifier<int> currentTankNumber = ValueNotifier<int>(1);
   final ValueNotifier<String?> eventMessage = ValueNotifier<String?>(null);
+  final ValueNotifier<int> supplyRevision = ValueNotifier<int>(0);
+  final ValueNotifier<LegacySupply?> selectedSupply =
+      ValueNotifier<LegacySupply?>(null);
 
+  final LegacyHealthService _healthService = LegacyHealthService();
   final List<FishState> _tank1 = <FishState>[];
   final List<FishState> _tank2 = <FishState>[];
+
   TankScene? _scene;
   FishState? _isolated;
   FishState? _focused;
   int? _isolationHomeTank;
   double _hudTimer = 0;
-  final int _coins = 250;
+
+  int _coins = 300;
   int _food = 12;
+
+  LegacySupply? _treatmentSlot;
+  int _treatmentDoses = 0;
+  LegacySupply? _enhancementSlot;
+  int _enhancementDoses = 0;
+
+  int get coins => _coins;
+
+  List<LegacySupply> get equippedSupplies => <LegacySupply>[
+        if (_treatmentSlot != null && _treatmentDoses > 0) _treatmentSlot!,
+        if (_enhancementSlot != null && _enhancementDoses > 0)
+          _enhancementSlot!,
+      ];
 
   @override
   Future<void> onLoad() async {
@@ -54,19 +76,52 @@ class AguaLifeGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
 
-    // The J2ME simulation is real-time and independent of which tank is being
-    // viewed. Advance both tanks here instead of inside FishComponent so an
-    // off-screen tank never pauses when the player switches screens.
+    var sickFishCount = <FishState>[..._tank1, ..._tank2]
+        .where((fish) => fish.alive && fish.isSick)
+        .length;
+
+    void advanceTankFish(FishState fish) {
+      final steps = fish.tick(dt);
+      for (var step = 0; step < steps && fish.alive; step++) {
+        _healthService.advanceHealth(
+          fish,
+          environmentResearchLevel: 1,
+        );
+        if (fish.alive &&
+            _healthService.maybeInfect(
+              fish,
+              sickFishCount: sickFishCount,
+              environmentResearchLevel: 1,
+            )) {
+          sickFishCount++;
+        }
+        _healthService.advanceFed(fish, foodResearchLevel: 1);
+      }
+    }
+
     for (final fish in _tank1) {
-      fish.tick(dt);
+      advanceTankFish(fish);
     }
     for (final fish in _tank2) {
-      fish.tick(dt);
+      advanceTankFish(fish);
     }
 
     final isolated = _isolated;
     if (isolated != null) {
-      isolated.tick(dt);
+      final steps = isolated.tick(dt);
+      for (var step = 0; step < steps && isolated.alive; step++) {
+        _healthService.advanceHealth(
+          isolated,
+          environmentResearchLevel: 1,
+        );
+        _healthService.maybeInfect(
+          isolated,
+          sickFishCount: 0,
+          environmentResearchLevel: 1,
+        );
+        _healthService.advanceFed(isolated, foodResearchLevel: 1);
+      }
+
       final father = isolated.completePregnancyIfReady();
       if (father != null) {
         _deliverBaby(isolated, father);
@@ -88,6 +143,95 @@ class AguaLifeGame extends FlameGame {
 
   void chooseAction(LegacyAction next) {
     action.value = next;
+    if (next != LegacyAction.useSupply) {
+      selectedSupply.value = null;
+    }
+  }
+
+  void selectSupplyAction(LegacySupply supply) {
+    if (dosesFor(supply) <= 0) return;
+    selectedSupply.value = supply;
+    action.value = LegacyAction.useSupply;
+  }
+
+  int dosesFor(LegacySupply supply) {
+    if (_isTreatmentSupply(supply)) {
+      return _treatmentSlot == supply ? _treatmentDoses : 0;
+    }
+    return _enhancementSlot == supply ? _enhancementDoses : 0;
+  }
+
+  LegacySupply? occupyingSupplyFor(LegacySupply supply) =>
+      _isTreatmentSupply(supply) ? _treatmentSlot : _enhancementSlot;
+
+  bool hasSupplySlotConflict(LegacySupply supply) {
+    final occupant = occupyingSupplyFor(supply);
+    return occupant != null && dosesFor(occupant) > 0;
+  }
+
+  bool buySupply(LegacySupply supply, {bool replace = false}) {
+    final definition = LegacySupplyCatalog.of(supply);
+    if (hasSupplySlotConflict(supply) && !replace) {
+      eventMessage.value = 'REPLACE ITEM IN SLOT';
+      return false;
+    }
+    if (_coins < definition.price) {
+      eventMessage.value = "YOU CAN'T AFFORD IT!";
+      return false;
+    }
+
+    _coins -= definition.price;
+    if (_isTreatmentSupply(supply)) {
+      _treatmentSlot = supply;
+      _treatmentDoses = definition.dosesPerPurchase;
+    } else {
+      _enhancementSlot = supply;
+      _enhancementDoses = definition.dosesPerPurchase;
+    }
+
+    selectSupplyAction(supply);
+    supplyRevision.value++;
+    eventMessage.value = '${definition.name}  ${definition.dosesPerPurchase} DOSES';
+    _publishHud();
+    return true;
+  }
+
+  bool useSelectedSupply() {
+    final supply = selectedSupply.value;
+    if (supply == null || dosesFor(supply) <= 0) return false;
+
+    final current = currentTankNumber.value == 1 ? _tank1 : _tank2;
+    var affected = 0;
+    switch (supply) {
+      case LegacySupply.ichTreatment:
+        affected = _healthService.treat(
+          <FishState>[
+            ...current,
+            if (_isolated != null) _isolated!,
+          ],
+          FishDisease.ich,
+        );
+      case LegacySupply.fungalTreatment:
+        affected = _healthService.treat(
+          <FishState>[
+            ...current,
+            if (_isolated != null) _isolated!,
+          ],
+          FishDisease.fungus,
+        );
+      case LegacySupply.fishVitamins:
+        affected = _healthService.applyVitamins(current);
+      case LegacySupply.growthHormone:
+        affected = _healthService.applyGrowthHormone(current);
+      case LegacySupply.unknownChemical:
+        affected = _healthService.applyUnknownChemical(current);
+    }
+
+    _consumeSupplyDose(supply);
+    final definition = LegacySupplyCatalog.of(supply);
+    eventMessage.value = '${definition.name}: $affected FISH AFFECTED';
+    _publishHud();
+    return true;
   }
 
   void enterFishBrowse() {
@@ -147,6 +291,7 @@ class AguaLifeGame extends FlameGame {
         case LegacyAction.shop:
         case LegacyAction.switchTank:
         case LegacyAction.saleTank:
+        case LegacyAction.useSupply:
           return false;
       }
     }
@@ -157,6 +302,8 @@ class AguaLifeGame extends FlameGame {
       case LegacyAction.switchTank:
         await _showTank(currentTankNumber.value == 1 ? 2 : 1);
         return true;
+      case LegacyAction.useSupply:
+        return useSelectedSupply();
       case LegacyAction.shop:
       case LegacyAction.saleTank:
         return true;
@@ -247,9 +394,7 @@ class AguaLifeGame extends FlameGame {
 
   Future<void> _showTank(int number) async {
     final old = _scene;
-    if (old != null) {
-      old.removeFromParent();
-    }
+    if (old != null) old.removeFromParent();
 
     currentTankNumber.value = number;
     final states = number == 1 ? _tank1 : _tank2;
@@ -312,9 +457,7 @@ class AguaLifeGame extends FlameGame {
     _isolationHomeTank = null;
     isolationFish.value = null;
     final scene = _scene;
-    if (scene != null) {
-      await scene.addFish(state);
-    }
+    if (scene != null) await scene.addFish(state);
     cancelFishInteraction();
     _publishHud();
     return true;
@@ -326,6 +469,10 @@ class AguaLifeGame extends FlameGame {
     if (mother == null || mate == null) return false;
     if (mother.pregnant) {
       eventMessage.value = 'ALREADY PREGNANT!';
+      return false;
+    }
+    if (mother.isSick || mate.isSick) {
+      eventMessage.value = 'SICK FISH CANNOT BREED.';
       return false;
     }
     if (!mother.isAdult || !mate.isAdult) {
@@ -410,6 +557,34 @@ class AguaLifeGame extends FlameGame {
     return true;
   }
 
+  bool _isTreatmentSupply(LegacySupply supply) =>
+      supply == LegacySupply.ichTreatment ||
+      supply == LegacySupply.fungalTreatment;
+
+  void _consumeSupplyDose(LegacySupply supply) {
+    if (_isTreatmentSupply(supply)) {
+      if (_treatmentSlot != supply) return;
+      _treatmentDoses--;
+      if (_treatmentDoses <= 0) {
+        _treatmentDoses = 0;
+        _treatmentSlot = null;
+      }
+    } else {
+      if (_enhancementSlot != supply) return;
+      _enhancementDoses--;
+      if (_enhancementDoses <= 0) {
+        _enhancementDoses = 0;
+        _enhancementSlot = null;
+      }
+    }
+
+    if (dosesFor(supply) <= 0 && selectedSupply.value == supply) {
+      selectedSupply.value = null;
+      action.value = LegacyAction.food;
+    }
+    supplyRevision.value++;
+  }
+
   void _onFishFocused(FishState? state) {
     _focused = state;
     focusedFish.value = state == null ? null : FishSelection.fromState(state);
@@ -426,9 +601,7 @@ class AguaLifeGame extends FlameGame {
     );
 
     final state = _focused;
-    if (state != null) {
-      focusedFish.value = FishSelection.fromState(state);
-    }
+    if (state != null) focusedFish.value = FishSelection.fromState(state);
     final isolated = _isolated;
     if (isolated != null) {
       isolationFish.value = FishSelection.fromState(isolated);
