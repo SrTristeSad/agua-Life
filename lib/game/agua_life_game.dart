@@ -22,21 +22,27 @@ import 'services/game_save_service.dart';
 import 'services/legacy_health_service.dart';
 
 class AguaLifeGame extends FlameGame {
-  @override
-  Color backgroundColor() => const Color(0xFF0A2A43);
-
   static const int maxFishPerTank = 18;
   static const int saveSchemaVersion = 2;
 
-  final ValueNotifier<GameHudState> hud = ValueNotifier<GameHudState>(GameHudState.empty);
-  final ValueNotifier<FishSelection?> focusedFish = ValueNotifier<FishSelection?>(null);
-  final ValueNotifier<FishSelection?> isolationFish = ValueNotifier<FishSelection?>(null);
-  final ValueNotifier<FishInteractionMode> fishMode = ValueNotifier<FishInteractionMode>(FishInteractionMode.none);
-  final ValueNotifier<LegacyAction> action = ValueNotifier<LegacyAction>(LegacyAction.food);
+  @override
+  Color backgroundColor() => const Color(0xFF0A2A43);
+
+  final ValueNotifier<GameHudState> hud =
+      ValueNotifier<GameHudState>(GameHudState.empty);
+  final ValueNotifier<FishSelection?> focusedFish =
+      ValueNotifier<FishSelection?>(null);
+  final ValueNotifier<FishSelection?> isolationFish =
+      ValueNotifier<FishSelection?>(null);
+  final ValueNotifier<FishInteractionMode> fishMode =
+      ValueNotifier<FishInteractionMode>(FishInteractionMode.none);
+  final ValueNotifier<LegacyAction> action =
+      ValueNotifier<LegacyAction>(LegacyAction.food);
   final ValueNotifier<int> currentTankNumber = ValueNotifier<int>(1);
   final ValueNotifier<String?> eventMessage = ValueNotifier<String?>(null);
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
-  final ValueNotifier<LegacySupply?> selectedSupply = ValueNotifier<LegacySupply?>(null);
+  final ValueNotifier<LegacySupply?> selectedSupply =
+      ValueNotifier<LegacySupply?>(null);
   final ValueNotifier<bool> initialized = ValueNotifier<bool>(false);
 
   final Random _random = Random();
@@ -55,7 +61,6 @@ class AguaLifeGame extends FlameGame {
   FishState? _isolated;
   FishState? _focused;
   int? _isolationHomeTank;
-
   GameSettings settings = GameSettings();
   GameStatistics statistics = GameStatistics();
 
@@ -85,17 +90,26 @@ class AguaLifeGame extends FlameGame {
   List<FishState> get saleFish => List<FishState>.unmodifiable(_saleTank);
   Set<int> get magicFound => Set<int>.unmodifiable(_magicFound);
 
-  List<LegacySupply> get equippedSupplies => <LegacySupply>[
-        if (_treatmentSlot != null && _treatmentDoses > 0) _treatmentSlot!,
-        if (_enhancementSlot != null && _enhancementDoses > 0) _enhancementSlot!,
-      ];
+  List<LegacySupply> get equippedSupplies {
+    final result = <LegacySupply>[];
+    if (_treatmentSlot != null && _treatmentDoses > 0) {
+      result.add(_treatmentSlot!);
+    }
+    if (_enhancementSlot != null && _enhancementDoses > 0) {
+      result.add(_enhancementSlot!);
+    }
+    return result;
+  }
+
+  List<FishState> get _currentTank =>
+      currentTankNumber.value == 1 ? _tank1 : _tank2;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     final saved = await _saveService.load();
     if (saved == null) {
-      _newGameState();
+      _resetState();
     } else {
       _restore(saved);
       _applyOfflineProgress(saved);
@@ -157,159 +171,23 @@ class AguaLifeGame extends FlameGame {
     action.value = LegacyAction.useSupply;
   }
 
-  int dosesFor(LegacySupply supply) {
-    if (_isTreatmentSupply(supply)) return _treatmentSlot == supply ? _treatmentDoses : 0;
-    if (_isEnhancementSupply(supply)) return _enhancementSlot == supply ? _enhancementDoses : 0;
-    return 0;
-  }
-
-  bool isOwned(LegacySupply supply) => _ownedItems.contains(LegacySupplyCatalog.of(supply).itemIndex);
-
-  int researchLevelFor(LegacySupply supply) => switch (supply) {
-        LegacySupply.advertisingResearch => _advertisingLevel,
-        LegacySupply.fishFoodResearch => _foodResearchLevel,
-        LegacySupply.fishEnvironmentResearch => _environmentLevel,
-        _ => 0,
-      };
-
-  double researchProgressFor(LegacySupply supply) =>
-      _researchProgress[LegacySupplyCatalog.of(supply).itemIndex] ?? 0;
-
-  int shopPrice(LegacySupply supply) {
-    final definition = LegacySupplyCatalog.of(supply);
-    if (definition.isResearch) return LegacySupplyCatalog.researchPrice(supply, researchLevelFor(supply));
-    return definition.price;
-  }
-
-  String shopStatus(LegacySupply supply) {
-    final definition = LegacySupplyCatalog.of(supply);
-    if (definition.isResearch) {
-      final level = researchLevelFor(supply);
-      final progress = researchProgressFor(supply);
-      if (level >= 3) return 'FULLY RESEARCHED!';
-      if (progress > 0) return 'RESEARCH IN PROGRESS... ${progress.floor()}%';
-      return 'YOU HAVE LEVEL $level';
-    }
-    if (definition.isConsumable) {
-      final doses = dosesFor(supply);
-      return doses > 0 ? '$doses DOSES' : 'NOT OWNED';
-    }
-    return isOwned(supply) ? 'OWNED' : 'NOT OWNED';
-  }
-
-  LegacySupply? occupyingSupplyFor(LegacySupply supply) {
-    if (_isTreatmentSupply(supply)) return _treatmentSlot;
-    if (_isEnhancementSupply(supply)) return _enhancementSlot;
-    return null;
-  }
-
-  bool hasSupplySlotConflict(LegacySupply supply) {
-    final occupant = occupyingSupplyFor(supply);
-    return occupant != null && occupant != supply && dosesFor(occupant) > 0;
-  }
-
-  bool buySupply(LegacySupply supply, {bool replace = false}) {
-    final definition = LegacySupplyCatalog.of(supply);
-    if (definition.isResearch) return _startResearch(supply);
-    if (definition.kind == LegacyShopKind.eggs) return _buyEggs(supply);
-
-    if (definition.isConsumable && hasSupplySlotConflict(supply) && !replace) {
-      eventMessage.value = 'REPLACE ITEM IN SLOT';
-      return false;
-    }
-    if (!definition.isConsumable && isOwned(supply)) {
-      eventMessage.value = 'YOU ALREADY OWN IT!';
-      return false;
-    }
-    if (_coins < definition.price) {
-      eventMessage.value = "YOU CAN'T AFFORD IT!";
-      return false;
-    }
-
-    _spend(definition.price);
-    if (_isTreatmentSupply(supply)) {
-      _treatmentSlot = supply;
-      _treatmentDoses = definition.dosesPerPurchase;
-      selectSupplyAction(supply);
-    } else if (_isEnhancementSupply(supply)) {
-      _enhancementSlot = supply;
-      _enhancementDoses = definition.dosesPerPurchase;
-      selectSupplyAction(supply);
-    } else {
-      _ownedItems.add(definition.itemIndex);
-    }
-
-    if (supply == LegacySupply.secondTank) {
-      eventMessage.value = 'SECOND TANK UNLOCKED!';
-    } else {
-      eventMessage.value = definition.isConsumable
-          ? '${definition.name}  ${definition.dosesPerPurchase} DOSES'
-          : '${definition.name} PURCHASED';
-    }
-    _touch();
-    unawaited(saveNow());
-    return true;
-  }
-
-  bool buyFoodPack() {
-    const price = 20;
-    if (_coins < price) {
-      eventMessage.value = "YOU CAN'T AFFORD IT!";
-      return false;
-    }
-    _spend(price);
-    _food += 20;
-    eventMessage.value = 'FISH FOOD +20';
-    _touch();
-    return true;
-  }
-
-  bool useSelectedSupply() {
-    final supply = selectedSupply.value;
-    if (supply == null || dosesFor(supply) <= 0) return false;
-    final current = _currentTank;
-    var affected = 0;
-    switch (supply) {
-      case LegacySupply.ichTreatment:
-        affected = _healthService.treat(<FishState>[...current, if (_isolated != null) _isolated!], FishDisease.ich);
-        statistics.fishCured += affected;
-      case LegacySupply.fungalTreatment:
-        affected = _healthService.treat(<FishState>[...current, if (_isolated != null) _isolated!], FishDisease.fungus);
-        statistics.fishCured += affected;
-      case LegacySupply.fishVitamins:
-        affected = _healthService.applyVitamins(current);
-      case LegacySupply.growthHormone:
-        affected = _healthService.applyGrowthHormone(current);
-      case LegacySupply.unknownChemical:
-        affected = _healthService.applyUnknownChemical(current);
-        for (final fish in current) {
-          _registerSpecies(fish);
-        }
-      default:
-        return false;
-    }
-    _consumeSupplyDose(supply);
-    eventMessage.value = '${LegacySupplyCatalog.of(supply).name}: $affected FISH AFFECTED';
-    _publishHud();
-    _touch();
-    return true;
-  }
-
   void enterFishBrowse() {
     fishMode.value = FishInteractionMode.browsing;
     _scene?.beginBrowsing();
   }
 
   void browseFish(int delta) {
-    if (fishMode.value == FishInteractionMode.browsing) _scene?.browse(delta);
+    if (fishMode.value == FishInteractionMode.browsing) {
+      _scene?.browse(delta);
+    }
   }
 
   void selectIsolation() {
-    final isolated = _isolated;
-    if (isolated == null) return;
+    final fish = _isolated;
+    if (fish == null) return;
     _scene?.clearFocus();
     _focused = null;
-    focusedFish.value = FishSelection.fromState(isolated);
+    focusedFish.value = FishSelection.fromState(fish);
     fishMode.value = FishInteractionMode.selected;
     action.value = LegacyAction.release;
   }
@@ -323,13 +201,15 @@ class AguaLifeGame extends FlameGame {
 
   Future<bool> pressAction() async {
     if (fishMode.value == FishInteractionMode.browsing) {
-      final state = _scene?.focusedFish;
-      if (state == null) return false;
-      _focused = state;
+      final fish = _scene?.focusedFish;
+      if (fish == null) return false;
+      _focused = fish;
       _scene?.lockFocus();
-      focusedFish.value = FishSelection.fromState(state);
+      focusedFish.value = FishSelection.fromState(fish);
       fishMode.value = FishInteractionMode.selected;
-      action.value = _isolated == null ? LegacyAction.isolate : LegacyAction.breed;
+      action.value = _isolated == null
+          ? LegacyAction.isolate
+          : LegacyAction.breed;
       return true;
     }
 
@@ -369,14 +249,186 @@ class AguaLifeGame extends FlameGame {
     }
   }
 
-  void clearEventMessage() => eventMessage.value = null;
+  void clearEventMessage() {
+    eventMessage.value = null;
+  }
+
+  int dosesFor(LegacySupply supply) {
+    if (_isTreatmentSupply(supply)) {
+      return _treatmentSlot == supply ? _treatmentDoses : 0;
+    }
+    if (_isEnhancementSupply(supply)) {
+      return _enhancementSlot == supply ? _enhancementDoses : 0;
+    }
+    return 0;
+  }
+
+  bool isOwned(LegacySupply supply) =>
+      _ownedItems.contains(LegacySupplyCatalog.of(supply).itemIndex);
+
+  int researchLevelFor(LegacySupply supply) {
+    switch (supply) {
+      case LegacySupply.advertisingResearch:
+        return _advertisingLevel;
+      case LegacySupply.fishFoodResearch:
+        return _foodResearchLevel;
+      case LegacySupply.fishEnvironmentResearch:
+        return _environmentLevel;
+      default:
+        return 0;
+    }
+  }
+
+  double researchProgressFor(LegacySupply supply) {
+    return _researchProgress[LegacySupplyCatalog.of(supply).itemIndex] ?? 0;
+  }
+
+  int shopPrice(LegacySupply supply) {
+    final definition = LegacySupplyCatalog.of(supply);
+    if (definition.isResearch) {
+      return LegacySupplyCatalog.researchPrice(
+        supply,
+        researchLevelFor(supply),
+      );
+    }
+    return definition.price;
+  }
+
+  String shopStatus(LegacySupply supply) {
+    final definition = LegacySupplyCatalog.of(supply);
+    if (definition.isResearch) {
+      final level = researchLevelFor(supply);
+      final progress = researchProgressFor(supply);
+      if (level >= 3) return 'FULLY RESEARCHED!';
+      if (progress > 0) {
+        return 'RESEARCH IN PROGRESS... ${progress.floor()}%';
+      }
+      return 'YOU HAVE LEVEL $level';
+    }
+    if (definition.isConsumable) {
+      final doses = dosesFor(supply);
+      return doses > 0 ? '$doses DOSES' : 'NOT OWNED';
+    }
+    return isOwned(supply) ? 'OWNED' : 'NOT OWNED';
+  }
+
+  LegacySupply? occupyingSupplyFor(LegacySupply supply) {
+    if (_isTreatmentSupply(supply)) return _treatmentSlot;
+    if (_isEnhancementSupply(supply)) return _enhancementSlot;
+    return null;
+  }
+
+  bool hasSupplySlotConflict(LegacySupply supply) {
+    final occupant = occupyingSupplyFor(supply);
+    return occupant != null && occupant != supply && dosesFor(occupant) > 0;
+  }
+
+  bool buySupply(LegacySupply supply, {bool replace = false}) {
+    final definition = LegacySupplyCatalog.of(supply);
+    if (definition.isResearch) return _startResearch(supply);
+    if (definition.kind == LegacyShopKind.eggs) return _buyEggs(supply);
+
+    if (definition.isConsumable &&
+        hasSupplySlotConflict(supply) &&
+        !replace) {
+      eventMessage.value = 'REPLACE ITEM IN SLOT';
+      return false;
+    }
+    if (!definition.isConsumable && isOwned(supply)) {
+      eventMessage.value = 'YOU ALREADY OWN IT!';
+      return false;
+    }
+    if (_coins < definition.price) {
+      eventMessage.value = "YOU CAN'T AFFORD IT!";
+      return false;
+    }
+
+    _spend(definition.price);
+    if (_isTreatmentSupply(supply)) {
+      _treatmentSlot = supply;
+      _treatmentDoses = definition.dosesPerPurchase;
+      selectSupplyAction(supply);
+    } else if (_isEnhancementSupply(supply)) {
+      _enhancementSlot = supply;
+      _enhancementDoses = definition.dosesPerPurchase;
+      selectSupplyAction(supply);
+    } else {
+      _ownedItems.add(definition.itemIndex);
+    }
+
+    eventMessage.value = supply == LegacySupply.secondTank
+        ? 'SECOND TANK UNLOCKED!'
+        : definition.isConsumable
+            ? '${definition.name}  ${definition.dosesPerPurchase} DOSES'
+            : '${definition.name} PURCHASED';
+    _touch();
+    unawaited(saveNow());
+    return true;
+  }
+
+  bool buyFoodPack() {
+    const price = 20;
+    if (_coins < price) {
+      eventMessage.value = "YOU CAN'T AFFORD IT!";
+      return false;
+    }
+    _spend(price);
+    _food += 20;
+    eventMessage.value = 'FISH FOOD +20';
+    _touch();
+    return true;
+  }
+
+  bool useSelectedSupply() {
+    final supply = selectedSupply.value;
+    if (supply == null || dosesFor(supply) <= 0) return false;
+
+    var affected = 0;
+    switch (supply) {
+      case LegacySupply.ichTreatment:
+        affected = _healthService.treat(
+          <FishState>[..._currentTank, if (_isolated != null) _isolated!],
+          FishDisease.ich,
+        );
+        statistics.fishCured += affected;
+      case LegacySupply.fungalTreatment:
+        affected = _healthService.treat(
+          <FishState>[..._currentTank, if (_isolated != null) _isolated!],
+          FishDisease.fungus,
+        );
+        statistics.fishCured += affected;
+      case LegacySupply.fishVitamins:
+        affected = _healthService.applyVitamins(_currentTank);
+      case LegacySupply.growthHormone:
+        affected = _healthService.applyGrowthHormone(_currentTank);
+      case LegacySupply.unknownChemical:
+        affected = _healthService.applyUnknownChemical(_currentTank);
+        for (final fish in _currentTank) {
+          _registerSpecies(fish);
+        }
+        _requestSceneRebuild();
+      default:
+        return false;
+    }
+
+    _consumeSupplyDose(supply);
+    eventMessage.value =
+        '${LegacySupplyCatalog.of(supply).name}: $affected FISH AFFECTED';
+    _touch();
+    return true;
+  }
 
   Future<void> newGame() async {
-    _newGameState();
+    _resetState();
     await _showTank(1, force: true);
     _publishHud();
     _touch();
     await saveNow();
+  }
+
+  Future<void> saveNow() async {
+    if (!initialized.value) return;
+    await _saveService.save(_snapshot());
   }
 
   void setSpeed(GameSpeed speed) {
@@ -399,11 +451,19 @@ class AguaLifeGame extends FlameGame {
     _touch();
   }
 
-  int fairPriceFor(FishState fish) => LegacyEconomyCatalog.fairPrice(fish.bodyIndex, fish.finIndex);
+  int fairPriceFor(FishState fish) =>
+      LegacyEconomyCatalog.fairPrice(fish.bodyIndex, fish.finIndex);
 
   int askingPriceFor(FishState fish) {
     final key = LegacyEconomyCatalog.speciesKey(fish.bodyIndex, fish.finIndex);
-    return _askingPrices.putIfAbsent(key, () => LegacyEconomyCatalog.initialAskingPrice(fish.bodyIndex, fish.finIndex, _random));
+    return _askingPrices.putIfAbsent(
+      key,
+      () => LegacyEconomyCatalog.initialAskingPrice(
+        fish.bodyIndex,
+        fish.finIndex,
+        _random,
+      ),
+    );
   }
 
   void adjustAskingPrice(FishState fish, int delta) {
@@ -414,13 +474,12 @@ class AguaLifeGame extends FlameGame {
 
   bool returnSaleFish(int index) {
     if (index < 0 || index >= _saleTank.length) return false;
-    final target = _currentTank;
-    if (target.length >= maxFishPerTank) {
+    if (_currentTank.length >= maxFishPerTank) {
       eventMessage.value = 'TANK FULL!';
       return false;
     }
     final fish = _saleTank.removeAt(index);
-    target.add(fish);
+    _currentTank.add(fish);
     if (_scene != null) unawaited(_scene!.addFish(fish));
     eventMessage.value = 'FISH RETURNED TO TANK';
     _touch();
@@ -428,22 +487,13 @@ class AguaLifeGame extends FlameGame {
   }
 
   String simulateCustomerNow() {
-    final message = _runCustomerVisit(force: true);
-    eventMessage.value = message;
+    final result = _runCustomerVisit(force: true);
+    eventMessage.value = result;
     _touch();
-    return message;
+    return result;
   }
 
-  List<String> get magicFishStatus => LegacyEconomyCatalog.magicFish
-      .map((magic) => '${_magicFound.contains(magic.index) ? 'FOUND' : '???'}  ${magic.name}')
-      .toList(growable: false);
-
-  Future<void> saveNow() async {
-    if (!initialized.value) return;
-    await _saveService.save(_snapshot());
-  }
-
-  void _newGameState() {
+  void _resetState() {
     _tank1.clear();
     _tank2.clear();
     _saleTank.clear();
@@ -473,7 +523,7 @@ class AguaLifeGame extends FlameGame {
   }
 
   void _seedFish() {
-    const spotted = FishGenome(
+    const specialGenome = FishGenome(
       primaryColor: 0xFFFF8A33,
       secondaryColor: 0xFFFFE082,
       pattern: FishPattern.spots,
@@ -485,18 +535,32 @@ class AguaLifeGame extends FlameGame {
       valueModifier: 1.1,
       shimmer: false,
     );
+
     _tank1.addAll(<FishState>[
-      _fish(body: 0, fin: 0, age: 20, hunger: 0.78),
-      _fish(body: 1, fin: 1, age: 21, hunger: 0.84),
-      _fish(body: 2, fin: 4, age: 10, hunger: 0.88),
-      FishState(species: SpeciesCatalog.sunny, genome: spotted, bodyIndex: 3, finIndex: 3, ageSeconds: 3 * FishState.secondsPerAgeAtNormalSpeed, hunger: 0.91),
+      _newFish(body: 0, fin: 0, age: 20, hunger: 0.78),
+      _newFish(body: 1, fin: 1, age: 21, hunger: 0.84),
+      _newFish(body: 2, fin: 4, age: 10, hunger: 0.88),
+      FishState(
+        species: SpeciesCatalog.sunny,
+        genome: specialGenome,
+        bodyIndex: 3,
+        finIndex: 3,
+        ageSeconds: 3 * FishState.secondsPerAgeAtNormalSpeed,
+        hunger: 0.91,
+      ),
     ]);
     for (final fish in _tank1) {
       _registerSpecies(fish);
     }
   }
 
-  FishState _fish({required int body, required int fin, required int age, double hunger = 0.9, double health = 1}) {
+  FishState _newFish({
+    required int body,
+    required int fin,
+    required int age,
+    double hunger = 0.9,
+    double health = 1,
+  }) {
     final visual = SpeciesCatalog.visualForLegacy(body, fin);
     return FishState(
       species: visual,
@@ -509,15 +573,14 @@ class AguaLifeGame extends FlameGame {
     );
   }
 
-  List<FishState> get _currentTank => currentTankNumber.value == 1 ? _tank1 : _tank2;
-
   void _advanceTank(List<FishState> tank, double dt) {
     if (tank.isEmpty) return;
     var sickCount = tank.where((fish) => fish.alive && fish.isSick).length;
     final magic = _magicPresent(tank);
+
     for (final fish in List<FishState>.from(tank)) {
       final steps = fish.tick(dt);
-      for (var step = 0; step < steps && fish.alive; step++) {
+      for (var i = 0; i < steps && fish.alive; i++) {
         _healthService.advanceHealth(
           fish,
           environmentResearchLevel: _environmentLevel,
@@ -527,92 +590,103 @@ class AguaLifeGame extends FlameGame {
         if (magic.contains(4)) fish.addHealthPoints(1);
         if (_ownedItems.contains(12)) fish.addHealthPoints(1);
 
-        if (fish.isSick && magic.contains(2) && _random.nextInt(100) < 20) {
+        if (fish.isSick &&
+            magic.contains(2) &&
+            _random.nextInt(100) < 20) {
           fish.cureDisease();
           statistics.fishCured++;
           sickCount = max(0, sickCount - 1);
         }
-        if (fish.alive && _healthService.maybeInfect(
+
+        final infected = _healthService.maybeInfect(
           fish,
           sickFishCount: sickCount,
           environmentResearchLevel: _environmentLevel,
           halveRiskProtection: _ownedItems.contains(15),
-        )) {
-          sickCount++;
-        }
+        );
+        if (infected) sickCount++;
+
         _healthService.advanceFed(
           fish,
           foodResearchLevel: _foodResearchLevel,
           magicSustenance: magic.contains(1),
           ownsNutritionPlant: _ownedItems.contains(13),
         );
-        if (magic.contains(3) && _random.nextInt(100) <= 10) fish.addLegacyAge(1);
+        if (magic.contains(3) && _random.nextInt(100) <= 10) {
+          fish.addLegacyAge(1);
+        }
       }
     }
   }
 
   void _advanceIsolated(double dt) {
-    final isolated = _isolated;
-    if (isolated == null) return;
-    final home = (_isolationHomeTank ?? 1) == 1 ? _tank1 : _tank2;
-    final magic = _magicPresent(home);
-    final steps = isolated.tick(dt);
-    for (var step = 0; step < steps && isolated.alive; step++) {
+    final fish = _isolated;
+    if (fish == null) return;
+    final homeTank = (_isolationHomeTank ?? 1) == 1 ? _tank1 : _tank2;
+    final magic = _magicPresent(homeTank);
+    final steps = fish.tick(dt);
+
+    for (var i = 0; i < steps && fish.alive; i++) {
       _healthService.advanceHealth(
-        isolated,
+        fish,
         environmentResearchLevel: _environmentLevel,
         ownsAerationSystem: _ownedItems.contains(9),
         ownsTemperatureRegulator: _ownedItems.contains(10),
       );
-      if (magic.contains(4)) isolated.addHealthPoints(1);
-      if (isolated.isSick && magic.contains(2) && _random.nextInt(100) < 20) {
-        isolated.cureDisease();
+      if (magic.contains(4)) fish.addHealthPoints(1);
+      if (fish.isSick &&
+          magic.contains(2) &&
+          _random.nextInt(100) < 20) {
+        fish.cureDisease();
         statistics.fishCured++;
       }
       _healthService.maybeInfect(
-        isolated,
+        fish,
         sickFishCount: 0,
         environmentResearchLevel: _environmentLevel,
         halveRiskProtection: _ownedItems.contains(15),
       );
       _healthService.advanceFed(
-        isolated,
+        fish,
         foodResearchLevel: _foodResearchLevel,
         magicSustenance: magic.contains(1),
         ownsNutritionPlant: _ownedItems.contains(13),
       );
-      if (magic.contains(3) && _random.nextInt(100) <= 10) isolated.addLegacyAge(1);
+      if (magic.contains(3) && _random.nextInt(100) <= 10) {
+        fish.addLegacyAge(1);
+      }
     }
-    final father = isolated.completePregnancyIfReady();
-    if (father != null) _deliverBaby(isolated, father);
+
+    final father = fish.completePregnancyIfReady();
+    if (father != null) _deliverBabies(fish, father);
   }
 
   Set<int> _magicPresent(List<FishState> tank) {
     final result = <int>{};
     for (final fish in tank) {
       if (!fish.alive) continue;
-      final magic = LegacyEconomyCatalog.magicFor(fish.bodyIndex, fish.finIndex);
+      final magic =
+          LegacyEconomyCatalog.magicFor(fish.bodyIndex, fish.finIndex);
       if (magic != null) result.add(magic.index);
     }
     return result;
   }
 
-  void _deliverBaby(FishState mother, ({int fatherBody, int fatherFin}) father) {
-    final homeTank = _isolationHomeTank ?? currentTankNumber.value;
-    final target = homeTank == 1 ? _tank1 : _tank2;
+  void _deliverBabies(
+    FishState mother,
+    ({int fatherBody, int fatherFin}) father,
+  ) {
+    final tankNumber = _isolationHomeTank ?? currentTankNumber.value;
+    final target = tankNumber == 1 ? _tank1 : _tank2;
     final magic = _magicPresent(target);
-    var body = LegacyBreedCatalog.childOf(
+    final child = LegacyBreedCatalog.childOf(
       motherBody: mother.bodyIndex,
       motherFin: mother.finIndex,
       fatherBody: father.fatherBody,
       fatherFin: father.fatherFin,
-    ).body;
-    var fin = LegacyBreedCatalog.childOf(
-      motherBody: mother.bodyIndex,
-      motherFin: mother.finIndex,
-      fatherBody: father.fatherBody,
-      fatherFin: father.fatherFin,
-    ).fin;
+    );
+    var body = child.body;
+    var fin = child.fin;
 
     if (magic.contains(5) && _random.nextInt(100) <= 15) {
       if (_random.nextBool()) {
@@ -622,24 +696,35 @@ class AguaLifeGame extends FlameGame {
       }
     }
 
-    var babies = 1;
-    if (magic.contains(0)) babies++;
-    if (_ownedItems.contains(16)) babies++;
+    var requested = 1;
+    if (magic.contains(0)) requested++;
+    if (_ownedItems.contains(16)) requested++;
     var born = 0;
-    for (var i = 0; i < babies && target.length < maxFishPerTank; i++) {
-      final baby = _fish(body: body, fin: fin, age: 0, hunger: 0.90);
+
+    for (var i = 0;
+        i < requested && target.length < maxFishPerTank;
+        i++) {
+      final baby = _newFish(body: body, fin: fin, age: 0, hunger: 0.90);
       target.add(baby);
-      _registerSpecies(baby, bred: true);
+      _registerSpecies(baby);
       statistics.totalFishBred++;
-      if (LegacyEconomyCatalog.magicFor(body, fin) != null) statistics.magicFishBred++;
-      if (homeTank == currentTankNumber.value && _scene != null) unawaited(_scene!.addFish(baby));
+      if (LegacyEconomyCatalog.magicFor(body, fin) != null) {
+        statistics.magicFishBred++;
+      }
+      if (tankNumber == currentTankNumber.value && _scene != null) {
+        unawaited(_scene!.addFish(baby));
+      }
       born++;
     }
-    eventMessage.value = born == 0
-        ? 'TANK FULL! BABY FISH WAS EATEN.'
-        : born == 1
-            ? 'A NEW BABY WAS BORN! ${LegacyBreedCatalog.speciesName(body: body, fin: fin).toUpperCase()}'
-            : '$born BABY FISH WERE BORN!';
+
+    if (born == 0) {
+      eventMessage.value = 'TANK FULL! BABY FISH WAS EATEN.';
+    } else if (born == 1) {
+      eventMessage.value =
+          'A NEW BABY WAS BORN! ${LegacyBreedCatalog.speciesName(body: body, fin: fin).toUpperCase()}';
+    } else {
+      eventMessage.value = '$born BABY FISH WERE BORN!';
+    }
     _touch();
   }
 
@@ -658,36 +743,39 @@ class AguaLifeGame extends FlameGame {
     if (dropped == 0) return false;
     _food--;
     statistics.foodGiven++;
-    _publishHud();
     _touch();
     return true;
   }
 
   bool _isolateFocused() {
     if (_isolated != null) return false;
-    final state = _scene?.removeFocusedFish();
-    if (state == null) return false;
-    _isolated = state;
+    final fish = _scene?.removeFocusedFish();
+    if (fish == null) return false;
+    _isolated = fish;
     _isolationHomeTank = currentTankNumber.value;
-    isolationFish.value = FishSelection.fromState(state);
+    isolationFish.value = FishSelection.fromState(fish);
     cancelFishInteraction();
     _touch();
     return true;
   }
 
   Future<bool> _releaseIsolation() async {
-    final state = _isolated;
-    if (state == null) return false;
-    final homeNumber = _isolationHomeTank ?? currentTankNumber.value;
-    final target = homeNumber == 1 ? _tank1 : _tank2;
+    final fish = _isolated;
+    if (fish == null) return false;
+    final tankNumber = _isolationHomeTank ?? currentTankNumber.value;
+    final target = tankNumber == 1 ? _tank1 : _tank2;
     if (target.length >= maxFishPerTank) {
       eventMessage.value = 'TANK FULL!';
       return false;
     }
+
     _isolated = null;
     _isolationHomeTank = null;
     isolationFish.value = null;
-    if (homeNumber == currentTankNumber.value && _scene != null) await _scene!.addFish(state);
+    target.add(fish);
+    if (tankNumber == currentTankNumber.value && _scene != null) {
+      await _scene!.addFish(fish);
+    }
     cancelFishInteraction();
     _touch();
     return true;
@@ -710,6 +798,7 @@ class AguaLifeGame extends FlameGame {
       return false;
     }
     if (!mother.startPregnancy(mate)) return false;
+
     isolationFish.value = FishSelection.fromState(mother);
     eventMessage.value = 'FISH PREGNANT';
     cancelFishInteraction();
@@ -722,29 +811,27 @@ class AguaLifeGame extends FlameGame {
       eventMessage.value = "YOU DON'T OWN A SECOND TANK!";
       return false;
     }
-    final state = _scene?.focusedFish;
-    if (state == null) return false;
     final target = currentTankNumber.value == 1 ? _tank2 : _tank1;
     if (target.length >= maxFishPerTank) {
       eventMessage.value = 'TANK FULL!';
       return false;
     }
-    final removed = _scene?.removeFocusedFish();
-    if (removed == null) return false;
-    target.add(removed);
+    final fish = _scene?.removeFocusedFish();
+    if (fish == null) return false;
+    target.add(fish);
     cancelFishInteraction();
     _touch();
     return true;
   }
 
   bool _moveFocusedToSale() {
-    final state = _scene?.focusedFish;
-    if (state == null) return false;
-    if (!state.isAdult) {
+    final fish = _scene?.focusedFish;
+    if (fish == null) return false;
+    if (!fish.isAdult) {
       eventMessage.value = 'TOO YOUNG!';
       return false;
     }
-    if (state.isSick) {
+    if (fish.isSick) {
       eventMessage.value = 'SICK FISH!';
       return false;
     }
@@ -762,10 +849,10 @@ class AguaLifeGame extends FlameGame {
   }
 
   bool _trashFocused() {
-    final state = _scene?.removeFocusedFish();
-    if (state == null) return false;
-    _tank1.remove(state);
-    _tank2.remove(state);
+    final fish = _scene?.removeFocusedFish();
+    if (fish == null) return false;
+    _tank1.remove(fish);
+    _tank2.remove(fish);
     statistics.fishTrashed++;
     cancelFishInteraction();
     _touch();
@@ -774,7 +861,8 @@ class AguaLifeGame extends FlameGame {
 
   Future<bool> _switchTank() async {
     if (currentTankNumber.value == 1 && !ownsSecondTank) {
-      eventMessage.value = "YOU DON'T OWN A SECOND TANK! IT ALLOWS YOU TO BREED MORE FISH. YOU CAN BUY THIS TANK AT THE SUPPLY SHOP.";
+      eventMessage.value =
+          "YOU DON'T OWN A SECOND TANK! IT ALLOWS YOU TO BREED MORE FISH. YOU CAN BUY THIS TANK AT THE SUPPLY SHOP.";
       return false;
     }
     await _showTank(currentTankNumber.value == 1 ? 2 : 1);
@@ -785,10 +873,13 @@ class AguaLifeGame extends FlameGame {
     if (number == 2 && !ownsSecondTank && !force) return;
     final old = _scene;
     if (old != null) old.removeFromParent();
+
     currentTankNumber.value = number;
     final scene = TankScene(
       tankNumber: number,
-      backgroundAsset: number == 1 ? 'art/tank_freshwater.webp' : 'art/tank_tropical.webp',
+      backgroundAsset: number == 1
+          ? 'art/tank_freshwater.webp'
+          : 'art/tank_tropical.webp',
       fishStates: number == 1 ? _tank1 : _tank2,
       onFishFocused: _onFishFocused,
     );
@@ -815,8 +906,7 @@ class AguaLifeGame extends FlameGame {
       eventMessage.value = 'RESEARCH FISH ENVIRONMENT FIRST.';
       return false;
     }
-    final target = _currentTank;
-    if (target.length >= maxFishPerTank) {
+    if (_currentTank.length >= maxFishPerTank) {
       eventMessage.value = 'TANK FULL!';
       return false;
     }
@@ -824,19 +914,26 @@ class AguaLifeGame extends FlameGame {
       eventMessage.value = "YOU CAN'T AFFORD IT!";
       return false;
     }
+
     _spend(definition.price);
-    final rarity = switch (supply) {
-      LegacySupply.commonFishEggs => 0,
-      LegacySupply.unusualFishEggs => 1,
-      _ => 2,
-    };
+    final rarity = supply == LegacySupply.commonFishEggs
+        ? 0
+        : supply == LegacySupply.unusualFishEggs
+            ? 1
+            : 2;
     final count = _ownedItems.contains(14) ? 4 : 3;
     var hatched = 0;
-    for (var i = 0; i < count && target.length < maxFishPerTank; i++) {
-      final body = _eggFamily(rarity);
-      final fin = _eggFamily(rarity);
-      final fish = _fish(body: body, fin: fin, age: 0, hunger: 0.95);
-      target.add(fish);
+
+    for (var i = 0;
+        i < count && _currentTank.length < maxFishPerTank;
+        i++) {
+      final fish = _newFish(
+        body: _eggFamily(rarity),
+        fin: _eggFamily(rarity),
+        age: 0,
+        hunger: 0.95,
+      );
+      _currentTank.add(fish);
       _registerSpecies(fish);
       if (_scene != null) unawaited(_scene!.addFish(fish));
       hatched++;
@@ -847,11 +944,9 @@ class AguaLifeGame extends FlameGame {
   }
 
   int _eggFamily(int rarity) {
-    return switch (rarity) {
-      0 => _random.nextInt(8),
-      1 => 4 + _random.nextInt(11),
-      _ => 10 + _random.nextInt(11),
-    };
+    if (rarity == 0) return _random.nextInt(8);
+    if (rarity == 1) return 4 + _random.nextInt(11);
+    return 10 + _random.nextInt(11);
   }
 
   bool _startResearch(LegacySupply supply) {
@@ -861,41 +956,50 @@ class AguaLifeGame extends FlameGame {
       eventMessage.value = 'FULLY RESEARCHED!';
       return false;
     }
-    final item = definition.itemIndex;
-    final progress = _researchProgress[item] ?? 0;
-    if (progress > 0 && progress < 100) {
-      eventMessage.value = 'RESEARCH IN PROGRESS... ${progress.floor()}%';
+
+    final itemIndex = definition.itemIndex;
+    final existingProgress = _researchProgress[itemIndex] ?? 0;
+    if (existingProgress > 0 && existingProgress < 100) {
+      eventMessage.value =
+          'RESEARCH IN PROGRESS... ${existingProgress.floor()}%';
       return false;
     }
+
     final price = LegacySupplyCatalog.researchPrice(supply, level);
     if (_coins < price) {
       eventMessage.value = "YOU CAN'T AFFORD IT!";
       return false;
     }
     _spend(price);
-    _researchProgress[item] = 1;
+    _researchProgress[itemIndex] = 1;
     eventMessage.value = 'RESEARCH IN PROGRESS... 1%';
     _touch();
     return true;
   }
 
   void _advanceResearch(double dt) {
-    if (settings.speed == GameSpeed.paused || _researchProgress.isEmpty) return;
+    if (settings.speed == GameSpeed.paused || _researchProgress.isEmpty) {
+      return;
+    }
     final perSecond = 2 / (60 * settings.speed.legacyMinutesPerAge);
     final completed = <int>[];
-    for (final entry in _researchProgress.entries.toList()) {
-      if (entry.value <= 0 || entry.value >= 100) continue;
-      final next = entry.value + dt * perSecond;
-      _researchProgress[entry.key] = min(100, next);
+    final entries = _researchProgress.entries.toList(growable: false);
+    for (final entry in entries) {
+      final next = min(100.0, entry.value + dt * perSecond);
+      _researchProgress[entry.key] = next;
       if (next >= 100) completed.add(entry.key);
     }
+
     for (final item in completed) {
       _researchProgress.remove(item);
       if (item == 8) _advertisingLevel = min(3, _advertisingLevel + 1);
       if (item == 17) _foodResearchLevel = min(3, _foodResearchLevel + 1);
       if (item == 26) _environmentLevel = min(3, _environmentLevel + 1);
       final supply = _supplyByItemIndex(item);
-      if (supply != null) eventMessage.value = 'YOU COMPLETED A LEVEL OF ${LegacySupplyCatalog.of(supply).name}.';
+      if (supply != null) {
+        eventMessage.value =
+            'YOU COMPLETED A LEVEL OF ${LegacySupplyCatalog.of(supply).name}.';
+      }
       _touch();
     }
   }
@@ -903,51 +1007,60 @@ class AguaLifeGame extends FlameGame {
   void _advanceCustomers(double dt) {
     if (_saleTank.isEmpty || settings.speed == GameSpeed.paused) return;
     _customerTimer += dt * settings.speed.simulationMultiplier;
-    final ornamentCount = _ownedItems.where((item) => item >= 18 && item <= 23).length;
-    final interval = max(3.0, 12.0 - _advertisingLevel * 1.6 - ornamentCount * 0.35);
-    if (_customerTimer >= interval) {
-      _customerTimer = 0;
-      final message = _runCustomerVisit(force: false);
-      if (message == 'SOLD' || message.startsWith(r'$$')) _touch();
-    }
+    final ornamentCount =
+        _ownedItems.where((item) => item >= 18 && item <= 23).length;
+    final interval =
+        max(3.0, 12.0 - _advertisingLevel * 1.6 - ornamentCount * 0.35);
+    if (_customerTimer < interval) return;
+    _customerTimer = 0;
+    _runCustomerVisit(force: false);
   }
 
   String _runCustomerVisit({required bool force}) {
     if (_saleTank.isEmpty) return 'NO FISH';
-    final candidates = _saleTank.where((fish) => fish.alive && fish.isAdult && !fish.isSick).toList();
+    final candidates = _saleTank
+        .where((fish) => fish.alive && fish.isAdult && !fish.isSick)
+        .toList(growable: false);
     if (candidates.isEmpty) {
       if (_saleTank.any((fish) => fish.isSick)) return 'SICK FISH!';
       return 'TOO YOUNG!';
     }
+
     final fish = candidates[_random.nextInt(candidates.length)];
     final fair = fairPriceFor(fish);
     final ask = askingPriceFor(fish);
     final ratio = ask / max(1, fair);
-    var chance = ratio <= 1
-        ? 72
-        : ratio <= 1.25
-            ? 48
-            : ratio <= 1.5
-                ? 24
-                : 7;
+    var chance = 7;
+    if (ratio <= 1) {
+      chance = 72;
+    } else if (ratio <= 1.25) {
+      chance = 48;
+    } else if (ratio <= 1.5) {
+      chance = 24;
+    }
     chance += (_advertisingLevel - 1) * 8;
-    chance += _ownedItems.where((item) => item >= 18 && item <= 23).length * 2;
+    chance +=
+        _ownedItems.where((item) => item >= 18 && item <= 23).length * 2;
     if (_ownedItems.contains(11)) chance += 2;
     chance = chance.clamp(2, 95).toInt();
-    final buys = force ? _random.nextInt(100) < max(chance, 40) : _random.nextInt(100) < chance;
-    if (!buys) {
-      if (ratio > 1.5) return _random.nextBool() ? 'TOO EXPENSIVE' : 'OVERPRICED';
+
+    final requiredChance = force ? max(chance, 40) : chance;
+    if (_random.nextInt(100) >= requiredChance) {
+      if (ratio > 1.5) {
+        return _random.nextBool() ? 'TOO EXPENSIVE' : 'OVERPRICED';
+      }
       if (ratio > 1.15) return 'COSTS TOO MUCH';
       return _random.nextBool() ? 'NICE SELECTION' : 'BEAUTIFUL!';
     }
+
     _saleTank.remove(fish);
     _coins += ask;
-    statistics
-      ..fishSold++
-      ..moneyEarned += ask
-      ..topFishPrice = max(statistics.topFishPrice, ask);
-    _publishHud();
-    return r'$$$ SOLD FOR $' + '$ask';
+    statistics.fishSold++;
+    statistics.moneyEarned += ask;
+    statistics.topFishPrice = max(statistics.topFishPrice, ask);
+    eventMessage.value = 'SOLD FOR \$$ask';
+    _touch();
+    return 'SOLD FOR \$$ask';
   }
 
   void _cleanupDeadFish() {
@@ -956,26 +1069,43 @@ class AguaLifeGame extends FlameGame {
     _tank1.removeWhere((fish) => !fish.alive);
     _tank2.removeWhere((fish) => !fish.alive);
     _saleTank.removeWhere((fish) => !fish.alive);
+
     if (_isolated != null && !_isolated!.alive) {
       _isolated = null;
       _isolationHomeTank = null;
       isolationFish.value = null;
     }
-    final currentChanged = (currentTankNumber.value == 1 && before1 != _tank1.length) ||
-        (currentTankNumber.value == 2 && before2 != _tank2.length);
-    if (currentChanged && !_sceneRebuildPending) {
-      _sceneRebuildPending = true;
-      unawaited(_showTank(currentTankNumber.value, force: true).whenComplete(() => _sceneRebuildPending = false));
+
+    final currentChanged =
+        currentTankNumber.value == 1 && before1 != _tank1.length ||
+            currentTankNumber.value == 2 && before2 != _tank2.length;
+    if (currentChanged && _scene != null) {
+      _requestSceneRebuild();
       _touch();
     }
   }
 
-  void _registerSpecies(FishState fish, {bool bred = false}) {
+  void _requestSceneRebuild() {
+    if (_sceneRebuildPending || _scene == null) return;
+    _sceneRebuildPending = true;
+    unawaited(
+      _showTank(currentTankNumber.value, force: true).whenComplete(() {
+        _sceneRebuildPending = false;
+      }),
+    );
+  }
+
+  void _registerSpecies(FishState fish) {
     final key = LegacyEconomyCatalog.speciesKey(fish.bodyIndex, fish.finIndex);
     if (_discoveredSpecies.add(key)) {
-      _askingPrices[key] = LegacyEconomyCatalog.initialAskingPrice(fish.bodyIndex, fish.finIndex, _random);
+      _askingPrices[key] = LegacyEconomyCatalog.initialAskingPrice(
+        fish.bodyIndex,
+        fish.finIndex,
+        _random,
+      );
     }
-    final magic = LegacyEconomyCatalog.magicFor(fish.bodyIndex, fish.finIndex);
+    final magic =
+        LegacyEconomyCatalog.magicFor(fish.bodyIndex, fish.finIndex);
     if (magic != null) _magicFound.add(magic.index);
   }
 
@@ -985,10 +1115,13 @@ class AguaLifeGame extends FlameGame {
   }
 
   bool _isTreatmentSupply(LegacySupply supply) =>
-      supply == LegacySupply.ichTreatment || supply == LegacySupply.fungalTreatment;
+      supply == LegacySupply.ichTreatment ||
+      supply == LegacySupply.fungalTreatment;
 
   bool _isEnhancementSupply(LegacySupply supply) =>
-      supply == LegacySupply.fishVitamins || supply == LegacySupply.growthHormone || supply == LegacySupply.unknownChemical;
+      supply == LegacySupply.fishVitamins ||
+      supply == LegacySupply.growthHormone ||
+      supply == LegacySupply.unknownChemical;
 
   void _consumeSupplyDose(LegacySupply supply) {
     if (_isTreatmentSupply(supply)) {
@@ -1000,23 +1133,24 @@ class AguaLifeGame extends FlameGame {
       _enhancementDoses = max(0, _enhancementDoses - 1);
       if (_enhancementDoses == 0) _enhancementSlot = null;
     }
+
     if (dosesFor(supply) <= 0 && selectedSupply.value == supply) {
       selectedSupply.value = null;
       action.value = LegacyAction.food;
     }
-    _touch();
   }
 
-  LegacySupply? _supplyByItemIndex(int item) {
+  LegacySupply? _supplyByItemIndex(int itemIndex) {
     for (final supply in LegacySupply.values) {
-      if (LegacySupplyCatalog.of(supply).itemIndex == item) return supply;
+      if (LegacySupplyCatalog.of(supply).itemIndex == itemIndex) return supply;
     }
     return null;
   }
 
-  void _onFishFocused(FishState? state) {
-    _focused = state;
-    focusedFish.value = state == null ? null : FishSelection.fromState(state);
+  void _onFishFocused(FishState? fish) {
+    _focused = fish;
+    focusedFish.value =
+        fish == null ? null : FishSelection.fromState(fish);
   }
 
   void _publishHud() {
@@ -1027,14 +1161,25 @@ class AguaLifeGame extends FlameGame {
       averageHunger: _average(_currentTank, (fish) => fish.hunger),
       averageHealth: _average(_currentTank, (fish) => fish.health),
     );
-    if (_focused != null) focusedFish.value = FishSelection.fromState(_focused!);
-    if (_isolated != null) isolationFish.value = FishSelection.fromState(_isolated!);
+    if (_focused != null) {
+      focusedFish.value = FishSelection.fromState(_focused!);
+    }
+    if (_isolated != null) {
+      isolationFish.value = FishSelection.fromState(_isolated!);
+    }
   }
 
-  double _average(List<FishState> fish, double Function(FishState) read) {
-    final living = fish.where((state) => state.alive).toList();
+  double _average(
+    List<FishState> fish,
+    double Function(FishState fish) read,
+  ) {
+    final living = fish.where((state) => state.alive).toList(growable: false);
     if (living.isEmpty) return 0;
-    return living.fold<double>(0, (sum, state) => sum + read(state)) / living.length;
+    var total = 0.0;
+    for (final state in living) {
+      total += read(state);
+    }
+    return total / living.length;
   }
 
   void _touch() {
@@ -1042,34 +1187,42 @@ class AguaLifeGame extends FlameGame {
     _publishHud();
   }
 
-  Map<String, dynamic> _snapshot() => <String, dynamic>{
-        'schemaVersion': saveSchemaVersion,
-        'savedAt': DateTime.now().millisecondsSinceEpoch,
-        'coins': _coins,
-        'food': _food,
-        'currentTank': currentTankNumber.value,
-        'tank1': _tank1.map((fish) => fish.toJson()).toList(),
-        'tank2': _tank2.map((fish) => fish.toJson()).toList(),
-        'saleTank': _saleTank.map((fish) => fish.toJson()).toList(),
-        'isolated': _isolated?.toJson(),
-        'isolationHomeTank': _isolationHomeTank,
-        'ownedItems': _ownedItems.toList(),
-        'discoveredSpecies': _discoveredSpecies.toList(),
-        'magicFound': _magicFound.toList(),
-        'askingPrices': _askingPrices,
-        'researchLevels': <String, int>{
-          'advertising': _advertisingLevel,
-          'food': _foodResearchLevel,
-          'environment': _environmentLevel,
-        },
-        'researchProgress': _researchProgress.map((key, value) => MapEntry('$key', value)),
-        'treatmentSlot': _treatmentSlot == null ? null : LegacySupplyCatalog.of(_treatmentSlot!).itemIndex,
-        'treatmentDoses': _treatmentDoses,
-        'enhancementSlot': _enhancementSlot == null ? null : LegacySupplyCatalog.of(_enhancementSlot!).itemIndex,
-        'enhancementDoses': _enhancementDoses,
-        'settings': settings.toJson(),
-        'statistics': statistics.toJson(),
-      };
+  Map<String, dynamic> _snapshot() {
+    return <String, dynamic>{
+      'schemaVersion': saveSchemaVersion,
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
+      'coins': _coins,
+      'food': _food,
+      'currentTank': currentTankNumber.value,
+      'tank1': _tank1.map((fish) => fish.toJson()).toList(),
+      'tank2': _tank2.map((fish) => fish.toJson()).toList(),
+      'saleTank': _saleTank.map((fish) => fish.toJson()).toList(),
+      'isolated': _isolated?.toJson(),
+      'isolationHomeTank': _isolationHomeTank,
+      'ownedItems': _ownedItems.toList(),
+      'discoveredSpecies': _discoveredSpecies.toList(),
+      'magicFound': _magicFound.toList(),
+      'askingPrices': _askingPrices,
+      'researchLevels': <String, int>{
+        'advertising': _advertisingLevel,
+        'food': _foodResearchLevel,
+        'environment': _environmentLevel,
+      },
+      'researchProgress': _researchProgress.map(
+        (key, value) => MapEntry<String, double>('$key', value),
+      ),
+      'treatmentSlot': _treatmentSlot == null
+          ? null
+          : LegacySupplyCatalog.of(_treatmentSlot!).itemIndex,
+      'treatmentDoses': _treatmentDoses,
+      'enhancementSlot': _enhancementSlot == null
+          ? null
+          : LegacySupplyCatalog.of(_enhancementSlot!).itemIndex,
+      'enhancementDoses': _enhancementDoses,
+      'settings': settings.toJson(),
+      'statistics': statistics.toJson(),
+    };
+  }
 
   void _restore(Map<String, dynamic> json) {
     _tank1
@@ -1081,6 +1234,7 @@ class AguaLifeGame extends FlameGame {
     _saleTank
       ..clear()
       ..addAll(_fishList(json['saleTank']));
+
     _coins = _intOr(json['coins'], 300);
     _food = _intOr(json['food'], 30);
     currentTankNumber.value = _intOr(json['currentTank'], 1) == 2 ? 2 : 1;
@@ -1098,39 +1252,69 @@ class AguaLifeGame extends FlameGame {
       ..clear()
       ..addAll(_intMap(json['askingPrices']));
 
-    final levels = json['researchLevels'] is Map ? Map<String, dynamic>.from(json['researchLevels'] as Map) : <String, dynamic>{};
+    final levels = json['researchLevels'] is Map
+        ? Map<String, dynamic>.from(json['researchLevels'] as Map)
+        : <String, dynamic>{};
     _advertisingLevel = _intOr(levels['advertising'], 1).clamp(1, 3).toInt();
     _foodResearchLevel = _intOr(levels['food'], 1).clamp(1, 3).toInt();
     _environmentLevel = _intOr(levels['environment'], 1).clamp(1, 3).toInt();
+
     _researchProgress.clear();
-    if (json['researchProgress'] is Map) {
-      for (final entry in (json['researchProgress'] as Map).entries) {
+    final progress = json['researchProgress'];
+    if (progress is Map) {
+      for (final entry in progress.entries) {
         final key = int.tryParse('${entry.key}');
-        if (key != null && entry.value is num) _researchProgress[key] = (entry.value as num).toDouble();
+        if (key != null && entry.value is num) {
+          _researchProgress[key] = (entry.value as num).toDouble();
+        }
       }
     }
 
-    _treatmentSlot = _supplyByItemIndex(_nullableInt(json['treatmentSlot']) ?? -1);
+    _treatmentSlot =
+        _supplyByItemIndex(_nullableInt(json['treatmentSlot']) ?? -1);
     _treatmentDoses = _intOr(json['treatmentDoses'], 0);
-    _enhancementSlot = _supplyByItemIndex(_nullableInt(json['enhancementSlot']) ?? -1);
+    _enhancementSlot =
+        _supplyByItemIndex(_nullableInt(json['enhancementSlot']) ?? -1);
     _enhancementDoses = _intOr(json['enhancementDoses'], 0);
-    settings = GameSettings.fromJson(json['settings'] is Map ? Map<String, dynamic>.from(json['settings'] as Map) : null);
-    statistics = GameStatistics.fromJson(json['statistics'] is Map ? Map<String, dynamic>.from(json['statistics'] as Map) : null);
 
-    final isolated = json['isolated'];
-    _isolated = isolated is Map ? FishState.fromJson(Map<String, dynamic>.from(isolated)) : null;
+    settings = GameSettings.fromJson(
+      json['settings'] is Map
+          ? Map<String, dynamic>.from(json['settings'] as Map)
+          : null,
+    );
+    statistics = GameStatistics.fromJson(
+      json['statistics'] is Map
+          ? Map<String, dynamic>.from(json['statistics'] as Map)
+          : null,
+    );
+
+    final isolatedJson = json['isolated'];
+    _isolated = isolatedJson is Map
+        ? FishState.fromJson(Map<String, dynamic>.from(isolatedJson))
+        : null;
     _isolationHomeTank = _nullableInt(json['isolationHomeTank']);
-    for (final fish in <FishState>[..._tank1, ..._tank2, ..._saleTank, if (_isolated != null) _isolated!]) {
+
+    final allFish = <FishState>[
+      ..._tank1,
+      ..._tank2,
+      ..._saleTank,
+      if (_isolated != null) _isolated!,
+    ];
+    for (final fish in allFish) {
       _registerSpecies(fish);
     }
-    if (currentTankNumber.value == 2 && !ownsSecondTank) currentTankNumber.value = 1;
+    if (currentTankNumber.value == 2 && !ownsSecondTank) {
+      currentTankNumber.value = 1;
+    }
   }
 
   void _applyOfflineProgress(Map<String, dynamic> json) {
     final savedAt = _nullableInt(json['savedAt']);
-    if (savedAt == null) return;
-    final elapsed = (DateTime.now().millisecondsSinceEpoch - savedAt) / 1000;
-    if (elapsed <= 1 || settings.speed == GameSpeed.paused) return;
+    if (savedAt == null || settings.speed == GameSpeed.paused) return;
+    final elapsed =
+        (DateTime.now().millisecondsSinceEpoch - savedAt) / 1000.0;
+    if (elapsed <= 1) return;
+
     final safeElapsed = min(elapsed, 60 * 60 * 24 * 30).toDouble();
     final simulationDt = safeElapsed * settings.speed.simulationMultiplier;
     _advanceTank(_tank1, simulationDt);
@@ -1138,17 +1322,28 @@ class AguaLifeGame extends FlameGame {
     _advanceIsolated(simulationDt);
     _advanceResearch(safeElapsed);
     _cleanupDeadFish();
-    eventMessage.value = 'OFFLINE PROGRESS: ${(safeElapsed / 60).floor()} MIN';
+    eventMessage.value =
+        'OFFLINE PROGRESS: ${(safeElapsed / 60).floor()} MIN';
   }
 
   List<FishState> _fishList(dynamic value) {
     if (value is! List) return <FishState>[];
-    return value.whereType<Map>().map((entry) => FishState.fromJson(Map<String, dynamic>.from(entry))).toList();
+    final result = <FishState>[];
+    for (final entry in value) {
+      if (entry is Map) {
+        result.add(FishState.fromJson(Map<String, dynamic>.from(entry)));
+      }
+    }
+    return result;
   }
 
   Set<int> _intSet(dynamic value) {
     if (value is! List) return <int>{};
-    return value.whereType<num>().map((entry) => entry.toInt()).toSet();
+    final result = <int>{};
+    for (final entry in value) {
+      if (entry is num) result.add(entry.toInt());
+    }
+    return result;
   }
 
   Set<String> _stringSet(dynamic value) {
@@ -1160,12 +1355,16 @@ class AguaLifeGame extends FlameGame {
     final result = <String, int>{};
     if (value is Map) {
       for (final entry in value.entries) {
-        if (entry.value is num) result['${entry.key}'] = (entry.value as num).toInt();
+        if (entry.value is num) {
+          result['${entry.key}'] = (entry.value as num).toInt();
+        }
       }
     }
     return result;
   }
 
-  static int _intOr(dynamic value, int fallback) => value is num ? value.toInt() : fallback;
-  static int? _nullableInt(dynamic value) => value is num ? value.toInt() : null;
+  static int _intOr(dynamic value, int fallback) =>
+      value is num ? value.toInt() : fallback;
+  static int? _nullableInt(dynamic value) =>
+      value is num ? value.toInt() : null;
 }
