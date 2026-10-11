@@ -30,44 +30,44 @@ void main() {
       expect(state.growthProgress, 1);
     });
 
-    test('hunger falls and feeding restores it', () {
-      final state = fish(hunger: 0.7);
+    test('FED falls once per legacy age and feeding restores it', () {
+      final state = fish(hunger: 0.70);
 
-      state.tick(80);
+      state.tick(FishState.secondsPerAgeAtNormalSpeed);
+      expect(state.hunger, closeTo(0.69, 0.0001));
+
       final hungryValue = state.hunger;
-      expect(hungryValue, lessThan(0.7));
-
       state.feed();
       expect(state.hunger, greaterThan(hungryValue));
       expect(state.hunger, lessThanOrEqualTo(1));
     });
 
-    test('starvation eventually damages health', () {
+    test('starvation damages HEALTH by one point per age step', () {
       final state = FishState(
         species: SpeciesCatalog.shadow,
         genome: SpeciesCatalog.shadow.founderGenome,
         bodyIndex: 5,
         finIndex: 5,
-        hunger: 0.1,
+        hunger: 0.02,
       );
 
       final initialHealth = state.health;
-      state.tick(30);
+      state.tick(FishState.secondsPerAgeAtNormalSpeed);
 
-      expect(state.health, lessThan(initialHealth));
+      expect(state.hunger, 0);
+      expect(state.health, closeTo(initialHealth - 0.01, 0.0001));
     });
 
-    test('pregnancy requires adult fish and lasts three legacy ages', () {
+    test('pregnancy uses target age plus three and strict greater-than birth', () {
       final mother = fish(body: 2, fin: 4, age: 20);
       final father = fish(body: 10, fin: 14, age: 20);
 
       expect(mother.startPregnancy(father), isTrue);
       expect(mother.pregnant, isTrue);
-      expect(mother.pregnancyAgesRemaining, 3);
 
-      mother.tick(FishState.secondsPerAgeAtNormalSpeed * 2);
+      mother.tick(FishState.secondsPerAgeAtNormalSpeed * 3);
+      expect(mother.age, 23);
       expect(mother.completePregnancyIfReady(), isNull);
-      expect(mother.pregnancyAgesRemaining, 1);
 
       mother.tick(FishState.secondsPerAgeAtNormalSpeed);
       final completed = mother.completePregnancyIfReady();
