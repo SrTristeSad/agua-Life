@@ -61,7 +61,9 @@ class FishState {
   int get pregnancyAgesRemaining {
     final target = _pregnancyTargetAge;
     if (target == null) return 0;
-    return (target - age).clamp(0, pregnancyAgeSteps);
+    // The J2ME birth predicate is targetAge < currentAge, so the target age
+    // itself is still pregnant.
+    return (target + 1 - age).clamp(0, pregnancyAgeSteps + 1);
   }
 
   double get growthProgress =>
@@ -74,20 +76,26 @@ class FishState {
       return;
     }
 
+    final previousAge = age;
     ageSeconds += dt;
+    final currentAge = age;
 
-    final hungerBurn = 0.00125 * genome.growthRate;
-    _hunger = (_hunger - hungerBurn * dt).clamp(0, 1).toDouble();
+    // In the legacy simulation feeding/health pressure is processed once for
+    // each age step, not continuously every rendered second. This baseline is
+    // the level-1 food behavior recovered from n.a(m, boolean). Research and
+    // Magic Fish modifiers are layered on later by the simulation service.
+    for (var step = previousAge; step < currentAge && alive; step++) {
+      _advanceLegacyNeedsOneAge();
+    }
+  }
 
-    if (_hunger < 0.18) {
-      final resistance = genome.diseaseResistance.clamp(0.5, 2).toDouble();
-      _health = (_health - (0.0014 / resistance) * dt)
-          .clamp(0, 1)
-          .toDouble();
-    } else if (_hunger > 0.45 && _health < 1) {
-      _health = (_health + 0.00035 * genome.diseaseResistance * dt)
-          .clamp(0, 1)
-          .toDouble();
+  void _advanceLegacyNeedsOneAge() {
+    _hunger = (_hunger - 0.01).clamp(0, 1).toDouble();
+
+    // The J2ME code clamps FED to zero at <=2 and removes one HEALTH point.
+    if (_hunger <= 0.02) {
+      _hunger = 0;
+      _health = (_health - 0.01).clamp(0, 1).toDouble();
     }
 
     if (_health <= 0) {
@@ -101,7 +109,6 @@ class FishState {
     }
 
     _hunger = (_hunger + amount).clamp(0, 1).toDouble();
-    _health = (_health + 0.015).clamp(0, 1).toDouble();
   }
 
   bool startPregnancy(FishState mate) {
@@ -122,7 +129,9 @@ class FishState {
     if (target == null || fatherBody == null || fatherFin == null) {
       return null;
     }
-    if (age < target) {
+
+    // Exact predicate from m.h(): pregnancyTargetAge < currentAge.
+    if (age <= target) {
       return null;
     }
 
