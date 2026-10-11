@@ -1,4 +1,5 @@
 import 'package:agua_life/game/data/species_catalog.dart';
+import 'package:agua_life/game/models/fish_disease.dart';
 import 'package:agua_life/game/models/fish_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,7 @@ void main() {
     int fin = 0,
     double age = 0,
     double hunger = 0.85,
+    double health = 1,
   }) =>
       FishState(
         species: SpeciesCatalog.sunny,
@@ -16,6 +18,7 @@ void main() {
         finIndex: fin,
         ageSeconds: age * FishState.secondsPerAgeAtNormalSpeed,
         hunger: hunger,
+        health: health,
       );
 
   group('FishState', () {
@@ -23,39 +26,29 @@ void main() {
       final state = fish(age: 19);
       expect(state.isAdult, isFalse);
 
-      state.tick(FishState.secondsPerAgeAtNormalSpeed);
+      final steps = state.tick(FishState.secondsPerAgeAtNormalSpeed);
 
+      expect(steps, 1);
       expect(state.age, 20);
       expect(state.isAdult, isTrue);
       expect(state.growthProgress, 1);
     });
 
-    test('FED falls once per legacy age and feeding restores it', () {
-      final state = fish(hunger: 0.70);
+    test('tick reports crossed age steps without inventing simulation effects', () {
+      final state = fish(age: 2, hunger: 0.70);
+      final initialFed = state.fedPoints;
 
-      state.tick(FishState.secondsPerAgeAtNormalSpeed);
-      expect(state.hunger, closeTo(0.69, 0.0001));
+      final steps = state.tick(FishState.secondsPerAgeAtNormalSpeed * 3);
 
-      final hungryValue = state.hunger;
-      state.feed();
-      expect(state.hunger, greaterThan(hungryValue));
-      expect(state.hunger, lessThanOrEqualTo(1));
+      expect(steps, 3);
+      expect(state.age, 5);
+      expect(state.fedPoints, initialFed);
     });
 
-    test('starvation damages HEALTH by one point per age step', () {
-      final state = FishState(
-        species: SpeciesCatalog.shadow,
-        genome: SpeciesCatalog.shadow.founderGenome,
-        bodyIndex: 5,
-        finIndex: 5,
-        hunger: 0.02,
-      );
-
-      final initialHealth = state.health;
-      state.tick(FishState.secondsPerAgeAtNormalSpeed);
-
-      expect(state.hunger, 0);
-      expect(state.health, closeTo(initialHealth - 0.01, 0.0001));
+    test('feeding restores FED and clamps to 100', () {
+      final state = fish(hunger: 0.70);
+      state.feed();
+      expect(state.hunger, 1);
     });
 
     test('pregnancy uses target age plus three and strict greater-than birth', () {
@@ -75,6 +68,25 @@ void main() {
       expect(completed!.fatherBody, 10);
       expect(completed.fatherFin, 14);
       expect(mother.pregnant, isFalse);
+    });
+
+    test('sickness blocks breeding and infection cancels pregnancy', () {
+      final mother = fish(age: 20);
+      final father = fish(body: 4, fin: 4, age: 20);
+      expect(mother.startPregnancy(father), isTrue);
+
+      mother.infect(FishDisease.fungus);
+      expect(mother.isSick, isTrue);
+      expect(mother.pregnant, isFalse);
+      expect(mother.startPregnancy(father), isFalse);
+    });
+
+    test('legacy family mutation changes the species name source indices', () {
+      final state = fish(body: 0, fin: 0);
+      final before = state.legacySpeciesName;
+      state.mutateLegacyFamily(bodyIndex: 1);
+      expect(state.bodyIndex, 1);
+      expect(state.legacySpeciesName, isNot(before));
     });
 
     test('juveniles cannot breed', () {
