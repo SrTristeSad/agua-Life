@@ -46,8 +46,8 @@ class FishState {
   int get finIndex => _finIndex;
   double get hunger => _hunger;
   double get health => _health;
-  int get fedPoints => (_hunger * 100).round().clamp(0, 100);
-  int get healthPoints => (_health * 100).round().clamp(0, 100);
+  int get fedPoints => (_hunger * 100).round().clamp(0, 100).toInt();
+  int get healthPoints => (_health * 100).round().clamp(0, 100).toInt();
 
   int get age => ageSeconds ~/ secondsPerAgeAtNormalSpeed;
   bool get isAdult => age >= adultAge;
@@ -63,7 +63,7 @@ class FishState {
   int get pregnancyAgesRemaining {
     final target = _pregnancyTargetAge;
     if (target == null) return 0;
-    return (target + 1 - age).clamp(0, pregnancyAgeSteps + 1);
+    return (target + 1 - age).clamp(0, pregnancyAgeSteps + 1).toInt();
   }
 
   double get growthProgress =>
@@ -71,9 +71,6 @@ class FishState {
 
   double get visualScale => 0.78 + growthProgress * 0.22;
 
-  /// Advances only legacy time/age and returns how many age boundaries were
-  /// crossed. Health, disease and FED are processed by the simulation service
-  /// in the same order as the J2ME game.
   int tick(double dt) {
     if (!alive || dt <= 0) return 0;
     final previousAge = age;
@@ -87,7 +84,7 @@ class FishState {
   }
 
   void setFedPoints(int value) {
-    _hunger = value.clamp(0, 100) / 100;
+    _hunger = value.clamp(0, 100).toInt() / 100;
   }
 
   void addFedPoints(int delta) {
@@ -95,7 +92,7 @@ class FishState {
   }
 
   void setHealthPoints(int value) {
-    _health = value.clamp(0, 100) / 100;
+    _health = value.clamp(0, 100).toInt() / 100;
     if (_health <= 0) alive = false;
   }
 
@@ -112,8 +109,6 @@ class FishState {
   void infect(FishDisease next) {
     if (!alive || next == FishDisease.none || isSick) return;
     disease = next;
-    // Disease and pregnancy share the physiological state in the J2ME model.
-    // Becoming sick clears the pregnancy target.
     _clearPregnancy();
   }
 
@@ -153,7 +148,6 @@ class FishState {
       return null;
     }
 
-    // Exact predicate from m.h(): pregnancyTargetAge < currentAge.
     if (age <= target) return null;
 
     _clearPregnancy();
