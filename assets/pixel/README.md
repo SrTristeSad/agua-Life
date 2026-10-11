@@ -1,12 +1,10 @@
-# Aqua Life Pixel Runtime Assets
+# Aqua Life pixel-art runtime assets
 
-These atlases are runtime-optimized 512x384 indexed PNG exports derived from the approved Aqua Life pixel-art direction. They are intentionally kept separate from the legacy J2ME reference assets.
+The approved pixel-art sources are transported through GitHub as temporary Base64 text and materialized by `.github/workflows/apply-pixel-art.yml`.
 
-- `menu_atlas.png` — splash / main-menu UI
-- `game_ui_atlas.png` — HUD, navigation and negotiation UI
-- `fish_atlas_a.png` — Sunny, Zephyr, Koiya, Luna, Bubblefin animation sheet
-- `fish_atlas_b.png` — Shadow, Pearl, Neon, Tigris, Blossom animation sheet
-- `fx_atlas.png` — food, bubbles, diseases, eggs and effects
-- `tank_atlas.png` — tanks, plants, rocks and equipment
+Runtime PNG files live in `assets/images/pixel/` and are rendered with nearest-neighbor filtering.
 
-Runtime rendering should use nearest-neighbor filtering so the pixel-art edges stay crisp when scaled.
+Current runtime set:
+- `menu_atlas.png` — splash/main menu
+- `fish_swim_a.png` — Sunny/Zephyr/Koiya/Luna/Bubblefin, six swim frames each
+- `fish_swim_b.png` — Shadow/Pearl/Neon/Tigris/Blossom, six swim frames each

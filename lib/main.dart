@@ -8,6 +8,7 @@ import 'game/models/fish_selection.dart';
 import 'game/models/fish_state.dart';
 import 'game/models/game_settings.dart';
 import 'game/models/legacy_action.dart';
+import 'pixel_landing.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,14 +23,19 @@ class AguaLifeApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Agua Life',
         theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-        home: const AguaLifeScreen(),
+        home: PixelLandingScreen(
+          gameBuilder: (_) => const AguaLifeScreen(),
+          newGameBuilder: (_) => const AguaLifeScreen(startNewGame: true),
+        ),
       );
 }
 
 enum _Panel { none, menu, supplies, sale, stats, options, trophy, help, about }
 
 class AguaLifeScreen extends StatefulWidget {
-  const AguaLifeScreen({super.key});
+  const AguaLifeScreen({super.key, this.startNewGame = false});
+
+  final bool startNewGame;
 
   @override
   State<AguaLifeScreen> createState() => _AguaLifeScreenState();
@@ -41,6 +47,12 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
   int supplyIndex = 0;
   LegacySupply? replaceConfirmation;
   bool confirmNewGame = false;
+
+  @override
+  void initState() {
+    super.initState();
+    confirmNewGame = widget.startNewGame;
+  }
 
   @override
   Widget build(BuildContext context) {

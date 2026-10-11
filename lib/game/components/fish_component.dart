@@ -8,6 +8,11 @@ import 'package:flame/flame.dart';
 import '../models/fish_disease.dart';
 import '../models/fish_state.dart';
 
+/// Animated pixel-art fish renderer.
+///
+/// The legacy body/fin pair deterministically selects one of ten visual families.
+/// Gameplay still uses all 21 x 21 legacy combinations; this renderer only maps
+/// those combinations to the first production pixel-art animation set.
 class FishComponent extends PositionComponent with TapCallbacks {
   FishComponent({
     required this.state,
@@ -18,6 +23,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
             random.nextDouble() *
                 (state.species.maxSpeed - state.species.minSpeed),
         _wavePhase = random.nextDouble() * pi * 2,
+        _animationOffset = random.nextInt(_frameCount),
         super(
           size: Vector2(
             state.species.baseWidth * state.genome.bodyScale * state.visualScale,
@@ -26,39 +32,38 @@ class FishComponent extends PositionComponent with TapCallbacks {
           anchor: Anchor.center,
         );
 
+  static const int _frameCount = 6;
+  static const double _frameWidth = 16;
+  static const double _frameHeight = 12;
+
   final FishState state;
   final void Function(FishComponent fish)? onSelected;
   final Random _random;
   final double _baseSpeed;
   final double _wavePhase;
+  final int _animationOffset;
 
   ui.Image? _art;
+  int _atlasRow = 0;
   double _elapsed = 0;
   double _direction = 1;
   double _feedGlow = 0;
   bool _selected = false;
 
-  static const Map<String, String> _speciesArt = {
-    'sunny': 'art/fish_sunny.webp',
-    'zephyr': 'art/fish_zephyr.webp',
-    'luna': 'art/fish_luna.webp',
-    'shadow': 'art/fish_shadow.webp',
-  };
-
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    final asset = _speciesArt[state.species.id] ?? _speciesArt['sunny']!;
+    final visualIndex = (state.bodyIndex * 3 + state.finIndex) % 10;
+    _atlasRow = visualIndex % 5;
+    final asset = visualIndex < 5
+        ? 'pixel/fish_swim_a.png'
+        : 'pixel/fish_swim_b.png';
     _art = await Flame.images.load(asset);
   }
 
-  void celebrateFeeding() {
-    _feedGlow = 1;
-  }
+  void celebrateFeeding() => _feedGlow = 1;
 
-  void setSelected(bool selected) {
-    _selected = selected;
-  }
+  void setSelected(bool selected) => _selected = selected;
 
   @override
   bool containsLocalPoint(Vector2 point) {
@@ -70,9 +75,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
   }
 
   @override
-  void onTapDown(TapDownEvent event) {
-    onSelected?.call(this);
-  }
+  void onTapDown(TapDownEvent event) => onSelected?.call(this);
 
   @override
   void onMount() {
@@ -83,7 +86,6 @@ class FishComponent extends PositionComponent with TapCallbacks {
     final usableWidth = max(1.0, tank.width - width * 1.6);
     final minY = tank.height * 0.22 + height / 2;
     final maxY = max(minY + 1, tank.height * 0.76 - height / 2);
-
     position = Vector2(
       width * 0.8 + _random.nextDouble() * usableWidth,
       minY + _random.nextDouble() * (maxY - minY),
@@ -104,14 +106,12 @@ class FishComponent extends PositionComponent with TapCallbacks {
     );
 
     if (!state.alive) return;
-
     final tank = parent;
     if (tank is! PositionComponent) return;
 
     final hungerSpeed = 0.48 + state.hunger * 0.52;
     final healthSpeed = 0.4 + state.health * 0.6;
     final speed = _baseSpeed * hungerSpeed * healthSpeed;
-
     x += _direction * speed * dt;
     y += sin(_elapsed * 1.9 + _wavePhase) * 2.4 * dt;
 
@@ -139,12 +139,7 @@ class FishComponent extends PositionComponent with TapCallbacks {
       canvas.drawOval(
         ui.Rect.fromLTWH(-5, -5, width + 10, height + 10),
         ui.Paint()
-          ..color = ui.Color.fromARGB(
-            (165 * pulse).round(),
-            92,
-            232,
-            255,
-          )
+          ..color = ui.Color.fromARGB((165 * pulse).round(), 92, 232, 255)
           ..style = ui.PaintingStyle.stroke
           ..strokeWidth = 2,
       );
@@ -162,15 +157,21 @@ class FishComponent extends PositionComponent with TapCallbacks {
     final bob = sin(_elapsed * 4.2 + _wavePhase) * 0.6;
     canvas.translate(0, bob);
 
+    final frame = ((_elapsed * 6).floor() + _animationOffset) % _frameCount;
+    final source = ui.Rect.fromLTWH(
+      frame * _frameWidth,
+      _atlasRow * _frameHeight,
+      _frameWidth,
+      _frameHeight,
+    );
     canvas.drawImageRect(
       art,
-      ui.Rect.fromLTWH(0, 0, art.width.toDouble(), art.height.toDouble()),
+      source,
       ui.Rect.fromLTWH(0, 0, width, height),
-      ui.Paint()..filterQuality = ui.FilterQuality.high,
+      ui.Paint()..filterQuality = ui.FilterQuality.none,
     );
 
     _renderDisease(canvas);
-
     if (state.genome.shimmer || _feedGlow > 0) {
       final alpha = state.genome.shimmer ? 85 : (80 * _feedGlow).round();
       canvas.drawOval(
@@ -178,7 +179,6 @@ class FishComponent extends PositionComponent with TapCallbacks {
         ui.Paint()..color = ui.Color.fromARGB(alpha, 255, 255, 255),
       );
     }
-
     canvas.restore();
   }
 
@@ -214,9 +214,9 @@ class FishComponent extends PositionComponent with TapCallbacks {
           ui.Offset(width * 0.48, height * 0.39),
         ];
         for (var i = 0; i < blobs.length; i++) {
-          final r = max(1.2, width * (0.045 - i * 0.004));
-          canvas.drawCircle(blobs[i], r + 0.7, outer);
-          canvas.drawCircle(blobs[i], r, inner);
+          final radius = max(1.2, width * (0.045 - i * 0.004));
+          canvas.drawCircle(blobs[i], radius + 0.7, outer);
+          canvas.drawCircle(blobs[i], radius, inner);
         }
     }
   }
