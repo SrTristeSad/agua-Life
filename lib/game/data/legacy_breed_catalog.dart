@@ -66,6 +66,28 @@ class LegacyBreedCatalog {
     return (body: id ~/ finCount, fin: id % finCount);
   }
 
+  static ({int body, int fin}) childOf({
+    required int motherBody,
+    required int motherFin,
+    required int fatherBody,
+    required int fatherFin,
+  }) {
+    RangeError.checkValidIndex(motherBody, bodyFamilies, 'motherBody');
+    RangeError.checkValidIndex(motherFin, finFamilies, 'motherFin');
+    RangeError.checkValidIndex(fatherBody, bodyFamilies, 'fatherBody');
+    RangeError.checkValidIndex(fatherFin, finFamilies, 'fatherFin');
+
+    // This mirrors m.a(IIIII) in the supplied J2ME build: each child's
+    // body and fin family is the integer midpoint of the two parents.
+    return (
+      body: (motherBody + fatherBody) ~/ 2,
+      fin: (motherFin + fatherFin) ~/ 2,
+    );
+  }
+
   static String bodyName(int index) => bodyFamilies[index];
   static String finName(int index) => finFamilies[index];
+
+  static String speciesName({required int body, required int fin}) =>
+      '${finName(fin)} ${bodyName(body)}';
 }
