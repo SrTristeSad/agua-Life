@@ -11,6 +11,9 @@ import 'fish_component.dart';
 import 'food_flake.dart';
 
 class TankScene extends PositionComponent {
+  TankScene({this.onFishSelected});
+
+  final void Function(FishState state)? onFishSelected;
   final Random _random = Random(260211);
   final List<FishComponent> _fish = <FishComponent>[];
 
@@ -84,7 +87,11 @@ class TankScene extends PositionComponent {
     ];
 
     for (final state in fishStates) {
-      final component = FishComponent(state: state, random: _random);
+      final component = FishComponent(
+        state: state,
+        random: _random,
+        onSelected: _selectFish,
+      );
       _fish.add(component);
       await add(component);
     }
@@ -114,6 +121,13 @@ class TankScene extends PositionComponent {
     }
 
     return living.length;
+  }
+
+  void _selectFish(FishComponent selected) {
+    for (final fish in _fish) {
+      fish.setSelected(identical(fish, selected));
+    }
+    onFishSelected?.call(selected.state);
   }
 
   double _averageOf(double Function(FishComponent fish) read) {
