@@ -42,7 +42,7 @@ class FishComponent extends PositionComponent {
 
     final usableWidth = max(1.0, tank.width - width);
     final minY = tank.height * 0.18 + height / 2;
-    final maxY = max(minY + 1, tank.height * 0.82 - height / 2);
+    final maxY = max(minY + 1.0, tank.height * 0.82 - height / 2);
 
     position = Vector2(
       width / 2 + _random.nextDouble() * usableWidth,
@@ -98,16 +98,21 @@ class FishComponent extends PositionComponent {
       height * 0.74,
     );
 
+    final tailTop = (0.08 / genome.finScale).clamp(0.02, 0.2).toDouble();
+    final tailBottom =
+        (0.92 + (genome.finScale - 1) * 0.08).clamp(0.8, 0.98).toDouble();
     final tail = Path()
       ..moveTo(width * 0.25, height * 0.50)
-      ..lineTo(0, height * (0.08 / genome.finScale).clamp(0.02, 0.2))
-      ..lineTo(0, height * (0.92 + (genome.finScale - 1) * 0.08).clamp(0.8, 0.98))
+      ..lineTo(0, height * tailTop)
+      ..lineTo(0, height * tailBottom)
       ..close();
     canvas.drawPath(tail, Paint()..color = secondary);
 
+    final dorsalTop =
+        (0.02 / genome.finScale).clamp(0.0, 0.1).toDouble();
     final dorsal = Path()
       ..moveTo(width * 0.38, height * 0.20)
-      ..lineTo(width * 0.54, height * (0.02 / genome.finScale).clamp(0.0, 0.1))
+      ..lineTo(width * 0.54, height * dorsalTop)
       ..lineTo(width * 0.67, height * 0.22)
       ..close();
     canvas.drawPath(dorsal, Paint()..color = secondary);
@@ -132,12 +137,20 @@ class FishComponent extends PositionComponent {
       Paint()
         ..color = const Color(0xAA102A43)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+        ..strokeWidth = 1.0,
     );
 
     final eyeCenter = Offset(width * 0.76, height * 0.40);
-    canvas.drawCircle(eyeCenter, height * 0.095, Paint()..color = const Color(0xFFFFFFFF));
-    canvas.drawCircle(eyeCenter, height * 0.045, Paint()..color = const Color(0xFF132238));
+    canvas.drawCircle(
+      eyeCenter,
+      height * 0.095,
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    canvas.drawCircle(
+      eyeCenter,
+      height * 0.045,
+      Paint()..color = const Color(0xFF132238),
+    );
 
     if (_direction < 0) {
       canvas.restore();
@@ -160,26 +173,42 @@ class FishComponent extends PositionComponent {
         for (var i = 0; i < 3; i++) {
           final x = bodyRect.left + bodyRect.width * (0.28 + i * 0.18);
           canvas.drawRect(
-            Rect.fromLTWH(x, bodyRect.top, bodyRect.width * 0.08, bodyRect.height),
+            Rect.fromLTWH(
+              x,
+              bodyRect.top,
+              bodyRect.width * 0.08,
+              bodyRect.height,
+            ),
             patternPaint,
           );
         }
+        break;
       case FishPattern.spots:
         canvas.drawCircle(
-          Offset(bodyRect.left + bodyRect.width * 0.35, bodyRect.top + bodyRect.height * 0.35),
+          Offset(
+            bodyRect.left + bodyRect.width * 0.35,
+            bodyRect.top + bodyRect.height * 0.35,
+          ),
           bodyRect.height * 0.12,
           patternPaint,
         );
         canvas.drawCircle(
-          Offset(bodyRect.left + bodyRect.width * 0.56, bodyRect.top + bodyRect.height * 0.62),
+          Offset(
+            bodyRect.left + bodyRect.width * 0.56,
+            bodyRect.top + bodyRect.height * 0.62,
+          ),
           bodyRect.height * 0.10,
           patternPaint,
         );
         canvas.drawCircle(
-          Offset(bodyRect.left + bodyRect.width * 0.68, bodyRect.top + bodyRect.height * 0.30),
+          Offset(
+            bodyRect.left + bodyRect.width * 0.68,
+            bodyRect.top + bodyRect.height * 0.30,
+          ),
           bodyRect.height * 0.08,
           patternPaint,
         );
+        break;
       case FishPattern.patches:
         canvas.drawOval(
           Rect.fromLTWH(
@@ -199,6 +228,7 @@ class FishComponent extends PositionComponent {
           ),
           patternPaint,
         );
+        break;
     }
 
     canvas.restore();
