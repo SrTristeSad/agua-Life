@@ -3,6 +3,7 @@ enum LegacyAction {
   shop,
   switchTank,
   saleTank,
+  useSupply,
   moveTank,
   species,
   isolate,
