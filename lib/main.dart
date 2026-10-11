@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import 'game/agua_life_game.dart';
+import 'game/models/fish_selection.dart';
 import 'game/models/game_hud_state.dart';
 
 void main() {
@@ -56,6 +57,21 @@ class _AguaLifeScreenState extends State<AguaLifeScreen> {
                   ),
                 ),
                 const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: ValueListenableBuilder<FishSelection?>(
+                    valueListenable: _game.selectedFish,
+                    builder: (context, fish, _) {
+                      if (fish == null) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _FishInspector(fish: fish),
+                      );
+                    },
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   child: ValueListenableBuilder<GameHudState>(
@@ -160,6 +176,152 @@ class _AquariumHud extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FishInspector extends StatelessWidget {
+  const _FishInspector({required this.fish});
+
+  final FishSelection fish;
+
+  @override
+  Widget build(BuildContext context) {
+    final growth = (fish.growthProgress * 100).round();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xE51A3545),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x884DE5FF)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.water_rounded,
+                size: 18,
+                color: Color(0xFF75E9FF),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  fish.speciesName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (fish.shimmer)
+                const _TraitBadge(label: 'Raro ✦')
+              else
+                _TraitBadge(label: fish.patternLabel),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Expanded(
+                child: _TinyStat(
+                  label: 'Crescimento',
+                  value: '$growth%',
+                ),
+              ),
+              Expanded(
+                child: _TinyStat(
+                  label: 'Corpo',
+                  value: '${fish.bodyScale.toStringAsFixed(2)}×',
+                ),
+              ),
+              Expanded(
+                child: _TinyStat(
+                  label: 'Nadadeiras',
+                  value: '${fish.finScale.toStringAsFixed(2)}×',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Expanded(
+                child: _StatusMeter(
+                  label: 'Fome',
+                  value: fish.hunger,
+                  icon: Icons.restaurant_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StatusMeter(
+                  label: 'Saúde',
+                  value: fish.health,
+                  icon: Icons.favorite_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TraitBadge extends StatelessWidget {
+  const _TraitBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xAA28566A),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _TinyStat extends StatelessWidget {
+  const _TinyStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFFB8D4DF),
+            fontSize: 10,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 }
