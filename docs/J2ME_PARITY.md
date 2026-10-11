@@ -12,18 +12,18 @@ Do not invent new gameplay, new navigation, new HUD structure, new tank layout, 
 
 ## Presentation parity
 
-- [ ] Reproduce the same screen structure and screen order as the J2ME build.
-- [ ] Reproduce the same aquarium/tank presentation and switching behavior as the J2ME build.
-- [ ] Reproduce the same menu hierarchy and navigation flow.
-- [ ] Reproduce the same placement and purpose of gameplay controls.
-- [ ] Reproduce the same shop/supplies presentation and interaction flow.
-- [ ] Reproduce the same fish inspection/status presentation.
-- [ ] Reproduce the same isolation/breeding presentation.
+- [x] Main tank screen restored to the 352x416 J2ME composition reference.
+- [x] One aquarium is shown at a time; tanks are switched instead of displayed simultaneously.
+- [x] Top action bar, bottom isolation area and softkey-style controls restored as the base interaction layout.
+- [ ] Reproduce the complete menu hierarchy and navigation flow.
+- [ ] Reproduce the exact shop/supplies presentation and interaction flow.
+- [x] Reproduce the fish browsing/status interaction foundation.
+- [x] Reproduce the isolation/breeding placement and selection foundation.
 - [ ] Reproduce the same sale-tank presentation.
 - [ ] Reproduce the same research/statistics/options/help presentation.
 - [ ] Reproduce the same transitions and modal/popup behavior where applicable.
-- [ ] Do not show multiple aquariums simultaneously unless the J2ME screen being reproduced does so.
-- [ ] Do not add a modern persistent HUD if the equivalent J2ME screen does not have it.
+- [x] Do not show multiple aquariums simultaneously unless the J2ME screen being reproduced does so.
+- [x] Do not add a modern persistent HUD if the equivalent J2ME screen does not have it.
 
 ### What may change visually
 
@@ -40,105 +40,112 @@ Only the art/rendering quality may be modernized:
 
 ## Core aquarium simulation
 
-- [x] Individual fish age/growth foundation
-- [x] Hunger foundation
-- [x] Health foundation
-- [ ] Exact J2ME feeding interaction and food behavior
-- [ ] Real-time clock separated from rendering
-- [ ] Offline progression while the app is closed
-- [ ] Tank capacity rules
-- [ ] Young-fish vulnerability when a tank is overcrowded
-- [ ] Death and removal/trashed-fish accounting
-- [ ] Persistent save with schema migrations
+- [x] Legacy age foundation: age 20 is adulthood.
+- [x] Normal-speed age timing recovered from bytecode: one age step per 600 seconds.
+- [x] Hunger foundation.
+- [x] Health foundation.
+- [x] Food is dropped into the tank as individual flakes; fish consume flakes individually.
+- [ ] Exact remaining J2ME feeding values and research modifiers.
+- [ ] Real-time clock separated from rendering.
+- [ ] Offline progression while the app is closed.
+- [x] Tank capacity restored to 18 fish.
+- [x] Full-tank birth behavior foundation: newborn is not added when the tank is full.
+- [ ] Exact young-fish environmental vulnerability rules.
+- [ ] Death and removal/trashed-fish accounting.
+- [ ] Persistent save with schema migrations.
 
 ## Breeding and species
 
-- [x] Preserve the legacy 21 body families
-- [x] Preserve the legacy 21 fin families
-- [x] Preserve the 21 x 21 = 441 combination space
-- [ ] Exact legacy parent-combination lookup behavior
-- [ ] Exact isolation/breeding tank workflow
-- [ ] Pregnancy state and real-time birth delay
-- [ ] Multiple-baby/fertility effects
-- [ ] Adult threshold and breeding eligibility
-- [ ] Species discovery behavior
-- [ ] Per-species asking price
+- [x] Preserve the legacy 21 body families.
+- [x] Preserve the legacy 21 fin families.
+- [x] Preserve the 21 x 21 = 441 combination space.
+- [x] Species names are built from the legacy fin-family + body-family names.
+- [x] Exact child combination rule recovered from bytecode: integer midpoint of the two parents' body indices and fin indices.
+- [x] Isolation breeding flow is functional: isolate one fish, select an adult mate, use MATCH/BREED.
+- [x] Exact pregnancy timing structure recovered: pregnancy target is current age + 3.
+- [x] At normal speed, three age steps equal up to 30 minutes, matching the J2ME tutorial text.
+- [x] Adult threshold and breeding eligibility use age 20.
+- [x] Birth into the mother's tank is functional.
+- [ ] Multiple-baby/fertility Magic Fish effect.
+- [ ] Mutation Magic Fish effect.
+- [ ] Exact species discovery bookkeeping.
+- [ ] Per-species asking price.
 
 ## Disease and treatment
 
-- [ ] Ich disease
-- [ ] Fungus disease
-- [ ] Ich treatment
-- [ ] Fungal treatment
-- [ ] Fish vitamins
-- [ ] Cure probability and research/environment modifiers
-- [ ] Sick-fish isolation workflow
+- [ ] Ich disease.
+- [ ] Fungus disease.
+- [ ] Ich treatment.
+- [ ] Fungal treatment.
+- [ ] Fish vitamins.
+- [ ] Cure probability and research/environment modifiers.
+- [ ] Sick-fish isolation workflow.
 
 ## Supplies and chemicals
 
-- [ ] Basic/common fish eggs
-- [ ] Unusual fish eggs
-- [ ] Rare fish eggs
-- [ ] Growth hormone
-- [ ] Mutation/unknown chemical
-- [ ] Food inventory and feeding supplies
-- [ ] Supply shop inventory and purchasing
+- [ ] Basic/common fish eggs.
+- [ ] Unusual fish eggs.
+- [ ] Rare fish eggs.
+- [ ] Growth hormone.
+- [ ] Mutation/unknown chemical.
+- [ ] Food inventory and feeding supplies.
+- [ ] Supply shop inventory and purchasing.
 
 ## Research and equipment
 
-- [ ] Fish food research
-- [ ] Fish environment research
-- [ ] Advertising research
-- [ ] Aeration system
-- [ ] Temperature regulator
-- [ ] Cleaning snail
-- [ ] Golden seahorse
-- [ ] Nutrition plant
-- [ ] Incubation plant
-- [ ] Curing plant
-- [ ] Fertility plant
-- [ ] Decorations/ornaments
-- [ ] Second-tank progression/unlock rules
+- [ ] Fish food research.
+- [ ] Fish environment research.
+- [ ] Advertising research.
+- [ ] Aeration system.
+- [ ] Temperature regulator.
+- [ ] Cleaning snail.
+- [ ] Golden seahorse.
+- [ ] Nutrition plant.
+- [ ] Incubation plant.
+- [ ] Curing plant.
+- [ ] Fertility plant.
+- [ ] Decorations/ornaments.
+- [ ] Second-tank progression/unlock rules.
 
 ## Selling and economy
 
-- [ ] Dedicated sale tank
-- [ ] Adult-only sale eligibility
-- [ ] Customer arrival/sale simulation
-- [ ] Popularity/interest behavior
-- [ ] Customer feedback/comments behavior
-- [ ] Money earned/spent tracking
-- [ ] Average sale price
-- [ ] Highest-priced fish record
-- [ ] Economy values reconstructed from the J2ME behavior
+- [ ] Dedicated sale tank.
+- [ ] Adult-only sale eligibility.
+- [ ] Customer arrival/sale simulation.
+- [ ] Popularity/interest behavior.
+- [ ] Customer feedback/comments behavior.
+- [ ] Money earned/spent tracking.
+- [ ] Average sale price.
+- [ ] Highest-priced fish record.
+- [ ] Economy values reconstructed from the J2ME behavior.
 
 ## Seven magic fish
 
-- [ ] Fertility effect
-- [ ] Sustenance effect
-- [ ] Curing effect
-- [ ] Growth effect
-- [ ] Health effect
-- [ ] Mutation effect
-- [ ] Golden Guppy wealth effect
-- [ ] End-goal/progression state for discovering all seven
+- [ ] Fertility effect.
+- [ ] Sustenance effect.
+- [ ] Curing effect.
+- [ ] Growth effect.
+- [ ] Health effect.
+- [ ] Mutation effect.
+- [ ] Golden Guppy wealth effect.
+- [ ] End-goal/progression state for discovering all seven.
 
 ## Statistics and settings
 
-- [ ] Fish sold
-- [ ] Fish trashed
-- [ ] Fish cured
-- [ ] Money earned
-- [ ] Money spent
-- [ ] Average money per fish
-- [ ] Food given
-- [ ] Hours played
-- [ ] Species found
-- [ ] Top fish price
-- [ ] Magic species/fish bred
-- [ ] Total fish bred
-- [ ] Options, speed and audio settings
-- [ ] Help/tutorial behavior and presentation
+- [ ] Fish sold.
+- [ ] Fish trashed.
+- [ ] Fish cured.
+- [ ] Money earned.
+- [ ] Money spent.
+- [ ] Average money per fish.
+- [ ] Food given.
+- [ ] Hours played.
+- [ ] Species found.
+- [ ] Top fish price.
+- [ ] Magic species/fish bred.
+- [ ] Total fish bred.
+- [ ] Options, speed and audio settings.
+- [ ] Help/tutorial behavior and presentation.
 
 ## Art replacement rule
 
