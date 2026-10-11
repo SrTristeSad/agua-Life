@@ -31,7 +31,9 @@ jobs:
           cache: true
 
       - name: Generate Android wrapper
-        run: flutter create --platforms=android --org com.srtristesad --project-name agua_life .
+        run: |
+          flutter create --platforms=android --org com.srtristesad --project-name agua_life .
+          rm -f test/widget_test.dart
 
       - name: Install dependencies
         run: flutter pub get
