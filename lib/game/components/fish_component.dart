@@ -95,7 +95,9 @@ class FishComponent extends PositionComponent with TapCallbacks {
   @override
   void update(double dt) {
     super.update(dt);
-    state.tick(dt);
+    // FishState time is advanced by AguaLifeGame for every tank, including
+    // tanks that are not currently rendered. This component is presentation
+    // only, so switching screens cannot pause another tank's simulation.
     _elapsed += dt;
     _feedGlow = max(0, _feedGlow - dt * 1.7);
 
@@ -104,6 +106,10 @@ class FishComponent extends PositionComponent with TapCallbacks {
       state.species.baseWidth * state.genome.bodyScale * targetScale,
       state.species.baseHeight * state.genome.bodyScale * targetScale,
     );
+
+    if (!state.alive) {
+      return;
+    }
 
     final tank = parent;
     if (tank is! PositionComponent) {
