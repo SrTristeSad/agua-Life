@@ -4,6 +4,7 @@
 local M={}
 local lg=love.graphics
 local JSON=require('game.json')
+local DNAVisual=require('art.dna_visual')
 local ATLAS='assets/fish/matrix/atlas_441.png'
 local META='assets/fish/matrix/atlas_441.json'
 local CW,CH=128,64
@@ -203,6 +204,10 @@ function M.draw(spec,x,y,scale,direction,time,health,joints)
  local s=(scale or 1)*(isMagic and .345 or 1)
  lg.push('all')
  lg.setColor(1,1,1,1)
+ -- O catálogo estático mantém os pixels canônicos; nos peixes vivos,
+ -- alelos de paleta/estampa alteram apenas o fenótipo visual.
+ local shader=DNAVisual.getShader(spec,entry.tx,entry.ty,entry.w,entry.h)
+ if shader then lg.setShader(shader) end
  lg.translate(x,y+pose.bob*s)
  lg.scale((direction or 1)*s,s)
  lg.rotate(pose.body)
@@ -242,6 +247,9 @@ function M.drawPart(spec,part,x,y,width,height)
  end
  lg.pop()
  return true
+end
+function M.visualParameters(spec)
+ return DNAVisual.parameters(spec)
 end
 function M.clearCache()
  for _,entry in pairs(skeletal) do
