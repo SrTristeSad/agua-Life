@@ -47,6 +47,14 @@ Também é possível baixar este repositório e rodar a pasta diretamente usando
 
 A loja, o laboratório e todas as telas têm botões para utilizar a interface sem teclado.
 
+## Corrigir erro de caminho no Windows
+
+Caso o LÖVE exiba `Cannot load game at path '...agua-Life-main"'`, isso era causado pelo iniciador antigo: `%~dp0` termina em barra invertida e era passado ao LÖVE com aspas que podiam virar um caractere literal no caminho. O iniciador foi corrigido para usar `%~dp0.` (caminho normalizado, sem barra final) e também abrir um `.love` caso esteja ao lado do BAT.
+
+**Se você já tem a pasta antiga:** atualize somente o arquivo `INICIAR_WINDOWS.bat` a partir deste repositório e execute-o novamente. Alternativamente, com LÖVE instalado, arraste a pasta que contém `main.lua` sobre `love.exe`, ou execute no terminal `love .` de dentro dessa pasta.
+
+Existe também um teste automatizado no GitHub Actions, em `windows-launch-smoke.yml`, que verifica caminhos com espaços e arquivos `.love` num Windows real.
+
 ## Arquitetura
 
 - **main.lua** — telas e interações do cliente.
