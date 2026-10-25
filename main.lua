@@ -601,6 +601,33 @@ function love.draw()
   assert(Matrix.available(),'O atlas de 441 peixes não foi encontrado')
   assert(require('art.dna_visual').getShader(C.get(1,1,6,2),0,0,128,64),
    'O shader DNA de cor/estampa precisa compilar e executar no LÖVE')
+  -- Comparacao real de pixels renderizados: cor muda, silhueta permanece.
+  local function renderVariant(spec)
+   local cv=g.newCanvas(384,192)
+   g.setCanvas(cv);g.clear(0,0,0,0)
+   assert(Matrix.draw(spec,192,96,2,1,1.2))
+   g.setCanvas()
+   local data=cv:newImageData()
+   cv:release()
+   return data
+  end
+  local original=renderVariant(C.get(1,1,1,1))
+  local altered=renderVariant(C.get(1,1,6,4))
+  local rgbChanged=0
+  local samples=0
+  for yy=45,145,4 do
+   for xx=90,290,4 do
+    local r1,g1,b1,a1=original:getPixel(xx,yy)
+    local r2,g2,b2,a2=altered:getPixel(xx,yy)
+    if a1>.25 and a2>.25 then
+     samples=samples+1
+     rgbChanged=rgbChanged+math.abs(r1-r2)+math.abs(g1-g2)+math.abs(b1-b2)
+     assert(math.abs(a1-a2)<.03,'Genes de cor alteraram transparência')
+    end
+   end
+  end
+  assert(samples>40 and rgbChanged>2,'Genes de cor/estampa não alteraram pixels visíveis')
+  print('OK graphics: '..samples..' pixels de silhueta intacta; DNA muda RGB')
   assert(Matrix.draw(C.get(1,1,3,1),300,300,2,1,clock))
   assert(Matrix.draw(C.get(21,17,3,1),580,300,2,1,clock))
   assert(Matrix.drawPart(C.get(1,1,3,1),'tail',730,320,180,120))
