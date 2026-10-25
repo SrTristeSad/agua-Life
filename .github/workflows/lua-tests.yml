@@ -17,6 +17,7 @@ jobs:
           lua5.4 tests/render_smoke.lua
           lua5.4 tests/genetics.lua
           lua5.4 tests/rigged_fish.lua
+          lua5.4 tests/game_play.lua
       - name: Validate generated transparent sprites and joint metadata
         run: |
           python - <<'PY'
@@ -41,3 +42,22 @@ jobs:
           AGUA_RIG_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
+      - name: Native playable menu and aquarium smoke
+        env:
+          AGUA_PLAY_SMOKE: aquarium
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
+      - name: Native 21x21 DNA catalog rendering smoke
+        env:
+          AGUA_PLAY_SMOKE: collection
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
+      - name: Build standalone LOVE game (without study-only original assets)
+        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi
+      - name: Publish playable LOVE file
+        uses: actions/upload-artifact@v4
+        with:
+          name: agua-Life-playable
+          path: agua-Life-playable.love
+          if-no-files-found: error
+          retention-days: 30
