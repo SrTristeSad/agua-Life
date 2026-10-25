@@ -21,7 +21,14 @@ local still=Rig.pose(0,false)
 local swimming=Rig.pose(1,false)
 local sick=Rig.pose(1,true)
 assert(math.abs(still.tail-swimming.tail)>.01)
-assert(math.abs(sick.tail)<math.abs(swimming.tail))
+local peakHealthy,peakSick=0,0
+for i=0,500 do
+ local t=i/50
+ peakHealthy=math.max(peakHealthy,math.abs(Rig.pose(t,false).tail))
+ peakSick=math.max(peakSick,math.abs(Rig.pose(t,true).tail))
+end
+assert(peakHealthy>.2 and peakSick<peakHealthy*.6,
+ 'doenca deve reduzir o pico de movimento, nao cada fase do seno')
 assert(Rig.pivots.tail[1]==110 and Rig.pivots.eye[1]==273)
 assert(Rig.bounds.body[3]>Rig.pivots.eye[1])
 assert(#Rig.order==7)
