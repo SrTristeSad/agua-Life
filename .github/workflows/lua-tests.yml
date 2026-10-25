@@ -12,4 +12,4 @@ jobs:
       - name: Lua syntax check
         run: find . -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
       - name: Catalog and rendering tests
-        run: lua5.4 tests/catalog.lua && lua5.4 tests/render_smoke.lua
+        run: lua5.4 tests/catalog.lua && lua5.4 tests/render_smoke.lua && lua5.4 tests/genetics.lua
