@@ -1,72 +1,44 @@
-# Agua Life
+# agua-Life — peixes originais em Lua
 
-Agua Life is a modern aquarium-management and fish-breeding game being rebuilt with **Flutter + Flame**.
+Reinicio do **agua-Life** como projeto independente **Lua + LÖVE 11.4/11.5**.
 
-> [!IMPORTANT]
-> **PUBLIC REPOSITORY DOES NOT MEAN OPEN SOURCE.**
->
-> This repository is public only so the project can use GitHub development tools and workflows. No permission is granted to use, copy, modify, redistribute, publish, sublicense, sell, mirror, repackage, train on, or create derivative works from this project's source code, game design, original artwork, assets, documentation, branding, or other project material, except where a file explicitly states otherwise.
->
-> See [`LICENSE`](LICENSE) for the full terms.
+**Este commit e uma vitrine de arte**, nao um jogo completo e nem uma copia do Fish Tycoon. O Fish Tycoon serviu apenas de referencia conceitual para combinar formas de corpos e tipos de cauda. Nao reutilizamos seus sprites, PNGs, codigo, musica, paletas, nomes de peixes ou estruturas comerciais.
 
-## Status
+## Executar no Windows
 
-Early development / playable foundation.
+Instale [LÖVE](https://love2d.org/) 11.4 ou 11.5. Baixe e extraia este repositorio e arraste a pasta inteira para o executavel love.exe; alternativamente, execute love . no terminal na pasta do projeto.
 
-Current goals:
+## O que esta pronto
 
-- responsive aquarium scene for modern phones;
-- Flutter + Flame architecture;
-- fish that remain visually small relative to the tank;
-- species identity plus per-fish genetic variation;
-- inheritance of colors, patterns, body scale, fin scale and gameplay traits;
-- future cross-species breeding and discovery system;
-- replacement artwork created specifically for Agua Life;
-- save/offline progression, shop, research and collection systems in later milestones.
+- **21 silhuetas de corpos originais**: proporcao, dorso, volume e curvatura diferentes.
+- **21 tipos de cauda**: leques, duplas, flechas, veus, pontas e formas arredondadas.
+- **441 combinacoes de corpo e cauda**, 12 paletas e 6 padroes decorativos.
+- **Peixes desenhados completamente por codigo**: malhas com sombras interpoladas, raios de barbatanas, pupilas, brilhos e animacao procedural.
+- Aquario animado com algas, iluminacao e bolhas igualmente gerados em Lua.
+- Galeria de corpos e laboratorio para escolher corpo, cauda, paleta e estampa.
+- Nenhum asset externo e necessario para renderizar o jogo.
 
-## Display strategy
+## Controles
 
-The old 352x416 mobile format is treated only as a **legacy reference**, not as the final rendering resolution. Agua Life renders responsively at the device's available Flutter resolution. The aquarium and HUD are laid out for modern portrait phones while preserving the compact readability of classic mobile aquarium games.
+- **Mouse:** selecao dos peixes e botoes do painel.
+- **1 / 2:** aquario e galeria.
+- **Setas direita/esquerda:** corpo.
+- **Setas cima/baixo:** cauda.
+- **C:** cor.
+- **X:** estampa.
+- **Espaco:** pausar a animacao.
+- **R:** reiniciar exposicao.
+- **F12:** captura de tela em arquivo PNG (apenas saida, sem dependencia grafica).
 
-## Art policy
+## Arquivos
 
-Legacy game assets are **not part of the intended final art pipeline**. Agua Life will use newly created replacement artwork and its own visual identity. Temporary/procedural graphics may be used during development until final assets are integrated.
+- art/catalog.lua — 21 corpos, 21 caudas, 12 paletas e combinacoes.
+- art/fish.lua — renderizador vetorial original, sombras, detalhes e animacao.
+- main.lua — aquario, apresentacao, escolha de peixe, galeria.
+- conf.lua — configuracao do LÖVE.
+- tests/ — invariantes e testes do renderizador sem GPU.
+- docs/ART_DIRECTION.md — direcao de arte e escopo.
 
-## Tech
+**Ainda nao implementado:** reproducao, alimentacao, economia, pesquisas, persistencia e progressao. Esta e a primeira entrega da nova base e nao substitui um jogo completo.
 
-- Flutter
-- Flame 1.38.x
-- Dart 3.11+
-
-## Project structure
-
-```text
-lib/
-  game/
-    components/     # visual/gameplay components
-    data/           # species definitions
-    models/         # fish/genetic state
-    services/       # breeding and simulation rules
-  main.dart
-
-docs/
-  ARCHITECTURE.md
-  ART_DIRECTION.md
-```
-
-## Development
-
-After installing a compatible Flutter SDK:
-
-```bash
-flutter pub get
-flutter analyze
-flutter test
-flutter run
-```
-
-## Copyright
-
-Copyright (c) 2026 SrTristeSad. All rights reserved.
-
-The public visibility of this repository is not a grant of copyright, patent, trademark, or other intellectual-property rights.
+O codigo antigo Flutter/Dart do agua-Life foi substituido como solicitado. O historico antigo do Git permanece recuperavel.
