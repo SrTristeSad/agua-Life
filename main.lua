@@ -1,6 +1,7 @@
 -- agua-Life: base jogavel Lua + LOVE2D. Nenhuma dependencia de browser.
 local C=require('art.catalog')
 local Art=require('art.fish')
+local Matrix=require('art.matrix')
 local Rig=require('art.rigged_fish')
 local DNA=require('genetics.dna')
 local Health=require('genetics.health')
@@ -110,6 +111,7 @@ local function resume()
 end
 local function drawFish(spec,x,y,scale,face,t,health,showJoints)
  local k=scale or 1
+ if Matrix.draw(spec,x,y,k*1.62,face,t,health,showJoints) then return end
  if Rig.supports(spec) and Rig.draw(spec,x,y,k*.60,face,t,health,showJoints) then return end
  Art.draw(spec,x,y,k,face,t*3.1)
 end
@@ -363,7 +365,9 @@ local function collection()
    if discovered then rect(x-17,y-9,34,19,21,106,110,2,.38) end
    local spec=C.get(body,tail,(body-1)%12+1,(body-1)%6+1)
    -- Uma grade 21x21 real, composta a partir dos indices geneticos.
-   Art.draw(spec,x,y,.185,1,clock*2+body*.15)
+   if not Matrix.drawStatic(spec,x,y,.33,1,clock*.24+body*.15) then
+    Art.draw(spec,x,y,.185,1,clock*2+body*.15)
+   end
   end
  end
  rect(51,658,749,28,8,14,80,99)
@@ -371,21 +375,22 @@ local function collection()
 end
 local function atelier()
  rect(27,135,801,564,12,20,61,78)
- text('ATELIE DE ANIMACAO  |  AZUL-RUBI',52,154,titleFont)
- text('O modelo de referencia possui corpo e cinco articulacoes independentes.',52,189,small,184,225,224)
+ text('ATELIE DE ANIMACAO  |  MATRIZ C x F',52,154,titleFont)
+ text('Recortes da imagem: corpo, cauda, dorsal e ventral animados.',52,189,small,184,225,224)
  rect(57,223,739,267,12,21,80,94)
  local f=activeFish()
- local spec=(f and Rig.supports(f.spec)) and f.spec or C.get(1,1,3,1)
- if not Rig.draw(spec,410,355,1.3,1,clock,f and f.health or nil,joints) then
-  text('Arte PNG indisponível nesta instalação.',190,343,small)
+ local spec=f and f.spec or C.get(1,1,3,1)
+ if not Matrix.draw(spec,410,355,2.4,1,clock,f and f.health or nil,joints) then
+  drawFish(spec,410,355,2,1,clock,f and f.health)
+  text('Coloque atlas_441.png em assets/fish/matrix para ativar os sprites.',75,476,small)
  end
- local labels={{'CORPO','body'},{'CAUDA','tail'},{'DORSAL','dorsal'},
-  {'VENTRAL','pelvic'},{'PEITORAL','pectoral'},{'OLHO','eye'}}
+ local labels={{'CORPO','body'},{'CAUDA','tail'},
+  {'DORSAL','dorsal'},{'VENTRAL','ventral'}}
  for i,item in ipairs(labels) do
-  local x=45+(i-1)*128
-  rect(x,519,120,150,10,61,80,10)
-  Rig.drawPart(item[2],x+7,529,105,109)
-  center(item[1],x,646,120,fontTiny)
+  local x=72+(i-1)*177
+  rect(x,519,162,150,10,61,80,10)
+  Matrix.drawPart(spec,item[2],x+7,529,148,109)
+  center(item[1],x,646,162,fontTiny)
  end
  addButton(joints and 'Ocultar juntas [J]' or 'Ver juntas [J]',538,171,241,31,function()joints=not joints end)
 end
@@ -528,6 +533,8 @@ function love.draw()
  -- Ambos exercitam a renderização nativa, não apenas o parser Lua.
  if os.getenv('AGUA_RIG_SMOKE')=='1' then
   assert(Rig.assetsReady(C.get(1,1,3,1)))
+  assert(Matrix.available(),'Atlas da matriz ausente no smoke visual')
+  assert(Matrix.draw(C.get(2,17,3,1),650,340,2,1,clock))
   g.clear(.04,.13,.17)
   assert(Rig.draw(C.get(1,1,3,1),380,300,1.3,1,clock,nil,true))
   for i,name in ipairs({'body','tail','dorsal','pelvic','pectoral','eye'}) do
