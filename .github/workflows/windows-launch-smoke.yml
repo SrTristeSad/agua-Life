@@ -1,0 +1,38 @@
+name: Windows launcher regression
+on:
+  push:
+    paths:
+      - 'INICIAR_WINDOWS.bat'
+      - '.github/workflows/windows-launch-smoke.yml'
+  workflow_dispatch:
+jobs:
+  verify-windows-path:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify launcher handles folder paths and .love paths with spaces
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'agua life path with spaces'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          Copy-Item 'INICIAR_WINDOWS.bat' $dir
+          Copy-Item 'main.lua' $dir
+          $stub = Join-Path $dir 'fake love.cmd'
+          Set-Content -LiteralPath $stub -Encoding ascii -Value @(
+            '@echo off',
+            'echo %~1>"%~dp0captured.txt"'
+          )
+          $env:AGUA_LOVE_EXECUTABLE = $stub
+          $launcher = Join-Path $dir 'INICIAR_WINDOWS.bat'
+          & cmd.exe /d /c ('"' + $launcher + '"')
+          if ($LASTEXITCODE -ne 0) { throw "Folder launcher returned $LASTEXITCODE" }
+          $actual = (Get-Content (Join-Path $dir 'captured.txt') -Raw).Trim()
+          $expected = $dir + '\.'
+          if ($actual -ne $expected) { throw "Folder argument invalid: '$actual', expected '$expected'" }
+          New-Item -ItemType File -Path (Join-Path $dir 'agua-Life-playable.love') -Force | Out-Null
+          & cmd.exe /d /c ('"' + $launcher + '"')
+          if ($LASTEXITCODE -ne 0) { throw "LOVE launcher returned $LASTEXITCODE" }
+          $actual = (Get-Content (Join-Path $dir 'captured.txt') -Raw).Trim()
+          $expected = Join-Path $dir 'agua-Life-playable.love'
+          if ($actual -ne $expected) { throw "LOVE argument invalid: '$actual', expected '$expected'" }
+          Write-Host 'OK: path with spaces; no unwanted literal quote.'
