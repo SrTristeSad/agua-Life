@@ -22,6 +22,7 @@ local autosave=0
 local message='Selecione um peixe para começar.'
 local messageTime=0
 local joints=false
+local collectionFocus={body=1,fin=1}
 local buttons={}
 local uiError=false
 local bubbles={}
@@ -238,6 +239,39 @@ local function clickFish(f)
 end
 local function sidebar()
  rect(849,135,304,564,14,40,56,16)
+ if screen=='collection' then
+  local body,fin=collectionFocus.body,collectionFocus.fin
+  local spec=C.get(body,fin,(body-1)%12+1,(body-1)%6+1)
+  local rare=world:magicFor(spec)
+  local seen=world.s.discovered[body..'-'..fin]
+  text('AMPLIAR COMBINACAO',867,151,titleFont)
+  text('C'..body..' + F'..fin,870,188,titleFont,255,226,152)
+  rect(866,224,271,202,12,19,77,100)
+  if not Matrix.draw(spec,1000,325,2.8,1,clock,nil,joints) then
+   drawFish(spec,1000,325,1.6,1,clock)
+  end
+  local bodyName=C.bodies[body].name
+  local finName=C.fins[fin].name
+  text('Corpo: '..bodyName,869,442,small)
+  text('Barbatanas: '..finName,869,463,small)
+  text(rare and ('ESPECIAL: '..rare.name) or
+   (seen and 'Ja descoberto nesta partida' or 'Ainda nao descoberto'),
+   868,497,small,rare and 255 or 181,rare and 215 or 225,rare and 151 or 226)
+  addButton('C anterior',865,543,129,37,function()
+   collectionFocus.body=C.wrap(collectionFocus.body-1,21)
+  end)
+  addButton('Proximo C',1003,543,130,37,function()
+   collectionFocus.body=C.wrap(collectionFocus.body+1,21)
+  end)
+  addButton('F anterior',865,590,129,37,function()
+   collectionFocus.fin=C.wrap(collectionFocus.fin-1,21)
+  end)
+  addButton('Proximo F',1003,590,130,37,function()
+   collectionFocus.fin=C.wrap(collectionFocus.fin+1,21)
+  end)
+  text('Clique em qualquer peixe da matriz.',864,665,fontTiny,171,216,220)
+  return
+ end
  local f=findSelection()
  if not f then
   text('Meus peixes',871,158,titleFont)
@@ -365,9 +399,20 @@ local function collection()
    if discovered then rect(x-17,y-9,34,19,21,106,110,2,.38) end
    local spec=C.get(body,tail,(body-1)%12+1,(body-1)%6+1)
    -- Uma grade 21x21 real, composta a partir dos indices geneticos.
+   if collectionFocus.body==body and collectionFocus.fin==tail then
+    setColor(252,218,143,.95)
+    g.setLineWidth(1.5)
+    g.rectangle('line',x-17,y-11,34,22,4,4)
+   end
    if not Matrix.drawStatic(spec,x,y,.33,1,clock*.24+body*.15) then
     Art.draw(spec,x,y,.185,1,clock*2+body*.15)
    end
+   local row,col=body,tail
+   buttons[#buttons+1]={x=x-17,y=y-11,w=34,h=22,action=function()
+    collectionFocus.body=row
+    collectionFocus.fin=col
+   end}
+   
   end
  end
  rect(51,658,749,28,8,14,80,99)
