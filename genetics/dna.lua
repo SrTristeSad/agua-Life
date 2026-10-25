@@ -27,8 +27,14 @@ function DNA.valid(g)
 end
 function DNA.express(g)
  assert(DNA.valid(g),"DNA invalido")
- -- Primeiro alelo dominante em cada locus; preservamos recessivos.
- return Catalog.get(g.body[1],g.fin[1],g.palette[1],g.pattern[1])
+ -- Fenotipo misto: o indice visual fica entre os dois alelos.
+ -- A matriz 21x21 continua separando corpo e barbatanas, e os
+ -- alelos dos pais permanecem no DNA para os proximos cruzamentos.
+ local function combine(pairValues)
+  return math.floor((pairValues[1]+pairValues[2])/2)
+ end
+ return Catalog.get(combine(g.body),combine(g.fin),
+   combine(g.palette),combine(g.pattern))
 end
 function DNA.child(a,b,random)
  assert(DNA.valid(a) and DNA.valid(b),"Pais invalidos")
