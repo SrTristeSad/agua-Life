@@ -4,7 +4,7 @@ Jogo original de aquário genético em **Lua + LÖVE 11.x**, com reprodução, d
 
 ## A matriz que aparece no jogo
 
-Agora **o cliente usa os próprios peixes da imagem escolhida**, não a reconstrução procedural anterior: a imagem foi transformada em um atlas RGBA de **441 células (21 corpos × 21 barbatanas)**, mais os **sete peixes especiais M0–M6**. O catálogo, os peixes nadando, o exame de DNA e as prévias utilizam o atlas.
+Agora **o cliente usa os próprios peixes da imagem escolhida**, não a reconstrução procedural anterior: a imagem foi transformada em um atlas RGBA de **441 células (21 corpos × 21 barbatanas)**, mais os **sete peixes especiais M0–M6**. O catálogo, os peixes nadando, o exame de DNA e as prévias utilizam o atlas. **Clique numa das 441 células do catálogo** para ampliar e visualizar a combinação nadando no painel lateral.
 
 ![Sprites reais já recortados](assets/fish/matrix/atlas_441.png)
 
@@ -12,7 +12,7 @@ Os genes de **corpo (C)** e **barbatanas (F)** escolhem qual sprite C×F aparece
 
 ### Como a animação funciona
 
-O arquivo `art/matrix.lua` usa Quads do LÖVE para **recortar a cauda, a nadadeira dorsal, a ventral e a área central do peixe** a partir do sprite transparente. O recorte acontece em memória, sem gerar centenas de PNGs pequenos em disco. Cauda e nadadeiras giram em pivôs próprios; peixes doentes se movem de modo mais lento.
+O arquivo `art/matrix.lua` preserva cada peixe extraído como uma textura RGBA real. Durante o nado, uma **malha UV** divide virtualmente o corpo em regiões de cauda, dorsal e ventral, deformando essas regiões com movimentos diferentes e mantendo os pixels conectados. Isso evita rasgos nos sprites achatados. No **Ateliê**, os componentes ainda podem ser vistos como recortes independentes por Quads. Peixes doentes se movem mais devagar e com menor amplitude.
 
 A imagem original tem resolução **1672×941**, com peixes pequenos; ampliar sprites não inventa detalhe. Algumas barbatanas invadem a célula vizinha na imagem achatada, então há imperfeições pontuais nos recortes. O sistema não finge ter uma malha 3D ou animação desenhada quadro a quadro.
 
@@ -68,7 +68,7 @@ A operação mantém o mesmo atlas quando a fonte e a versão do exportador são
 - `game/play.lua`: economia, reprodução e ciclos biológicos.
 - `game/storage.lua`: saves e validação.
 - `genetics/dna.lua`, `genetics/health.lua`: hereditariedade e doenças.
-- `art/matrix.lua`: seleção de sprites por DNA, recortes Quads e animação.
+- `art/matrix.lua`: seleção de sprites por DNA, recortes Quads para inspeção e animação contínua da malha UV.
 - `art/fish.lua`: renderizador procedural de contingência.
 - `fish-tycoon-reference/`: referência isolada para pesquisa, não incluída no pacote distribuído.
 
