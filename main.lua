@@ -23,6 +23,7 @@ local message='Selecione um peixe para começar.'
 local messageTime=0
 local joints=false
 local collectionFocus={body=1,fin=1}
+local labPreview={id=nil,palette=nil,pattern=nil}
 local buttons={}
 local uiError=false
 local bubbles={}
@@ -355,7 +356,26 @@ local function lab()
   return
  end
  local p=DNA.profile(f)
- drawFish(f.spec,185,342,1.42,1,clock,f.health)
+ -- Laboratorio experimental: simula alelos visuais sem alterar nem salvar o peixe.
+ if labPreview.id~=f.id then
+  labPreview.id=f.id;labPreview.palette=f.spec.palette;labPreview.pattern=f.spec.pattern
+ end
+ local sample=C.get(f.spec.body,f.spec.fin,labPreview.palette,labPreview.pattern)
+ drawFish(sample,185,324,1.32,1,clock,f.health)
+ text('Aparencia simulada (sem editar DNA)',66,425,small,165,223,228)
+ text('Cor '..labPreview.palette..'/12  •  Estampa '..labPreview.pattern..'/6',85,454,small,247,226,171)
+ addButton('Cor -',60,488,106,33,function()
+  labPreview.palette=C.wrap(labPreview.palette-1,12)
+ end)
+ addButton('Cor +',174,488,106,33,function()
+  labPreview.palette=C.wrap(labPreview.palette+1,12)
+ end)
+ addButton('Estampa -',60,528,106,33,function()
+  labPreview.pattern=C.wrap(labPreview.pattern-1,6)
+ end)
+ addButton('Estampa +',174,528,106,33,function()
+  labPreview.pattern=C.wrap(labPreview.pattern+1,6)
+ end)
  rect(333,229,455,323,12,22,73,93)
  local gnome=f.genome
  text('PEIXE #'..f.id..'   GERACAO '..gnome.generation,355,246,titleFont)
