@@ -1,44 +1,18 @@
-# agua-Life — peixes originais em Lua
+# agua-Life — peixes procedurais em Lua
 
-Reinicio do **agua-Life** como projeto independente **Lua + LÖVE 11.4/11.5**.
+Jogo original em Lua/LÖVE 11.4+, com **21 corpos, 21 caudas, 12 paletas e 6 padrões**, compondo 441 espécies anatômicas. A arte e os cenários são desenhados por código.
 
-**Este commit e uma vitrine de arte**, nao um jogo completo e nem uma copia do Fish Tycoon. O Fish Tycoon serviu apenas de referencia conceitual para combinar formas de corpos e tipos de cauda. Nao reutilizamos seus sprites, PNGs, codigo, musica, paletas, nomes de peixes ou estruturas comerciais.
+## Novidades: genética e saúde
+- DNA próprio por peixe, com dois alelos de corpo, cauda, cor e estampa.
+- **N** cruza o peixe selecionado com o seguinte, criando um filhote que herda alelos dos dois pais (limite de 30 exemplares).
+- **F8** ou botão **DNA** mostra genes, resistência, predisposição, doenças e saúde.
+- **F9** ou **Mortes** exibe o relatório da última morte, com causa provável, doença encontrada, alimentação e grau de confiança.
+- **F** alimenta o peixe selecionado; **H** aplica tratamento à doença ativa.
+- A cada 5 segundos de jogo ocorre uma atualização biológica. Fome e infecções prejudicam a saúde; peixes podem morrer. Até 30 relatórios permanecem durante a sessão.
+- A predisposição genética **não** é diagnóstico. O relatório de morte é uma estimativa, não uma prova.
 
-## Executar no Windows
+## Executar
+Instale LÖVE 11.x e abra a pasta com `love .`. Para testar a lógica sem GPU, execute `texlua tests/genetics.lua` na raiz.
 
-Instale [LÖVE](https://love2d.org/) 11.4 ou 11.5. Baixe e extraia este repositorio e arraste a pasta inteira para o executavel love.exe; alternativamente, execute love . no terminal na pasta do projeto.
-
-## O que esta pronto
-
-- **21 silhuetas de corpos originais**: proporcao, dorso, volume e curvatura diferentes.
-- **21 tipos de cauda**: leques, duplas, flechas, veus, pontas e formas arredondadas.
-- **441 combinacoes de corpo e cauda**, 12 paletas e 6 padroes decorativos.
-- **Peixes desenhados completamente por codigo**: malhas com sombras interpoladas, raios de barbatanas, pupilas, brilhos e animacao procedural.
-- Aquario animado com algas, iluminacao e bolhas igualmente gerados em Lua.
-- Galeria de corpos e laboratorio para escolher corpo, cauda, paleta e estampa.
-- Nenhum asset externo e necessario para renderizar o jogo.
-
-## Controles
-
-- **Mouse:** selecao dos peixes e botoes do painel.
-- **1 / 2:** aquario e galeria.
-- **Setas direita/esquerda:** corpo.
-- **Setas cima/baixo:** cauda.
-- **C:** cor.
-- **X:** estampa.
-- **Espaco:** pausar a animacao.
-- **R:** reiniciar exposicao.
-- **F12:** captura de tela em arquivo PNG (apenas saida, sem dependencia grafica).
-
-## Arquivos
-
-- art/catalog.lua — 21 corpos, 21 caudas, 12 paletas e combinacoes.
-- art/fish.lua — renderizador vetorial original, sombras, detalhes e animacao.
-- main.lua — aquario, apresentacao, escolha de peixe, galeria.
-- conf.lua — configuracao do LÖVE.
-- tests/ — invariantes e testes do renderizador sem GPU.
-- docs/ART_DIRECTION.md — direcao de arte e escopo.
-
-**Ainda nao implementado:** reproducao, alimentacao, economia, pesquisas, persistencia e progressao. Esta e a primeira entrega da nova base e nao substitui um jogo completo.
-
-O codigo antigo Flutter/Dart do agua-Life foi substituido como solicitado. O historico antigo do Git permanece recuperavel.
+## Situação da reconstrução 1:1
+A vitrine atual de `agua-Life` é um projeto próprio, **não é uma cópia integral do Fish Tycoon Lua**. A migração fiel do motor original e do salvamento, assim como as novas artes definitivas, são trabalhos separados; não foram concluídos nesta atualização. O repositório `Fish-Tycoon-Lua` não foi alterado.

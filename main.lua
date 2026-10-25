@@ -1,6 +1,8 @@
 -- agua-Life: aquario/vitrine da arte procedural original
 local C=require('art.catalog')
 local Art=require('art.fish')
+local DNA=require('genetics.dna')
+local Health=require('genetics.health')
 local g=love.graphics
 local W,H=1180,760
 local clock,paused,screen=0,false,'aquarium'
@@ -8,6 +10,8 @@ local school,selected={},1
 local font,small,heading,logo
 local buttons={}
 local bubbles={}
+local deathReports={},examPanel=false
+local cycles=0
 local function rng(id,salt)return ((id*73+salt*211)%997)/997 end
 local function rgb(r,gg,b,a)g.setColor(r/255,gg/255,b/255,a or 1)end
 local function text(s,x,y,f,r,gg,b)
@@ -32,6 +36,7 @@ local function choice(kind,step)
  elseif kind=='fin' then f.fin=C.wrap(f.fin+step,#C.fins)
  elseif kind=='palette' then f.palette=C.wrap(f.palette+step,#C.palettes)
  else f.pattern=((f.pattern-1+step)%6)+1 end
+ school[selected].genome=DNA.founder(f)
 end
 local function reset()
  school={}
@@ -40,9 +45,11 @@ local function reset()
    spec=C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1),
    x=120+rng(i,1)*580,y=222+rng(i,2)*379,
    scale=.59+rng(i,3)*.35,face=(i%2==0) and -1 or 1,
-   speed=15+rng(i,4)*23,phase=i*.73}
+   speed=15+rng(i,4)*23,phase=i*.73,
+   id=i,genome=DNA.founder(C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1)),
+   health=Health.new()}
  end
- selected=1
+ selected=1;deathReports={};examPanel=false;cycles=0
 end
 function love.load()
  love.window.setMode(W,H,{resizable=true,minwidth=760,minheight=520,msaa=4})
@@ -106,6 +113,8 @@ local function header()
  text('ATELIE DE PEIXES PROCEDURAIS',43,73,small,112,190,190)
  btn('1   Aquario',465,36,155,35,function()screen='aquarium'end,screen=='aquarium')
  btn('2   Galeria',630,36,155,35,function()screen='gallery'end,screen=='gallery')
+ btn('DNA',795,36,70,35,function()examPanel=examPanel=='dna' and false or 'dna'end,examPanel=='dna')
+ btn('Mortes',873,36,75,35,function()examPanel=examPanel=='death' and false or 'death'end,examPanel=='death')
  rect(915,41,234,29,15,20,64,82)
  text('100% LUA + LOVE2D',953,48,small,176,231,232)
 end
@@ -159,6 +168,19 @@ end
 function love.update(dt)
  if paused then return end
  dt=math.min(dt,.1);clock=clock+dt
+ cycles=cycles+dt
+ if cycles>=5 then
+  cycles=cycles-5
+  for i=#school,1,-1 do
+   local f=school[i]
+   if not Health.cycle(f) then
+    deathReports[#deathReports+1]=Health.autopsy(f)
+    while #deathReports>30 do table.remove(deathReports,1) end
+    table.remove(school,i)
+    if selected>#school then selected=#school end
+   end
+  end
+ end
  if screen~='aquarium' then return end
  for _,a in ipairs(school) do
   a.x=a.x+a.face*a.speed*dt
@@ -174,6 +196,17 @@ function love.draw()
  header()
  if screen=='aquarium' then aquarium() else gallery() end
  side()
+ if examPanel then
+  local lines
+  if examPanel=='dna' then
+   lines=school[selected] and DNA.lines(school[selected]) or {'Nenhum peixe selecionado.'}
+  else lines=Health.deathLines(deathReports[#deathReports]) end
+  rect(240,190,530,430,17,11,38,54,.98)
+  for i,line in ipairs(lines) do
+   text(line,265,208+(i-1)*30,i==1 and heading or font)
+  end
+  btn('FECHAR',639,569,105,33,function()examPanel=false end)
+ end
  rect(0,707,W,53,0,8,29,42)
  text('ESPACO = pausa  |  SETAS = corpo/cauda  |  C = cores  |  X = ornamento  |  R = reiniciar',40,726,small,175,215,212)
  text(paused and 'PAUSADO' or ('Peixes: '..#school),1049,726,small)
@@ -206,5 +239,17 @@ function love.keypressed(k)
  elseif k=='c' then choice('palette',1)
  elseif k=='x' then choice('pattern',1)
  elseif k=='r' then reset()
+ elseif k=='f8' then examPanel=examPanel=='dna' and false or 'dna'
+ elseif k=='f9' then examPanel=examPanel=='death' and false or 'death'
+ elseif k=='escape' then examPanel=false
+ elseif k=='f' and school[selected] then Health.feed(school[selected])
+ elseif k=='h' and school[selected] then Health.treat(school[selected])
+ elseif k=='n' and #school>1 and #school<30 then
+  local a=school[selected];local b=school[selected==#school and 1 or selected+1]
+  local child=DNA.child(a.genome,b.genome)
+  local spec=DNA.express(child)
+  school[#school+1]={id=#school+1,genome=child,spec=spec,health=Health.new(),
+   x=240+rng(#school,1)*380,y=300+rng(#school,2)*260,
+   scale=.55,face=1,speed=20,phase=clock}
  elseif k=='f12' then g.captureScreenshot(os.date('agua-life-%Y%m%d-%H%M%S.png')) end
 end
