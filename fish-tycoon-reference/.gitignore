@@ -1,0 +1,11 @@
+
+# Arte comercial extraida localmente do JAR (nao versionar no repo publico)
+assets/original/assets.png
+assets/original/splash.png
+assets/original/gameMenuTank.png
+
+# Proprietary font PNGs and metrics extracted by the user from JAR
+assets/local_font/
+
+# Trophy orb art is imported from the user's own JAR, never commit.
+assets/original/trhopy_ball.png
