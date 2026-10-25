@@ -226,6 +226,20 @@ function love.update(dt)
  end
 end
 function love.draw()
+ -- Teste nativo opcional no CI: valida que PNGs e articulacoes realmente
+ -- renderizam na GPU (ao contrario de testar apenas sintaxe Lua).
+ if os.getenv('AGUA_RIG_SMOKE')=='1' then
+  local sample=C.get(1,1,3,1)
+  assert(Rig.assetsReady(sample),'PNG modular ausente')
+  g.clear(.02,.12,.17)
+  assert(Rig.draw(sample,360,300,1.3,1,clock,nil,true),'Desenho modular falhou')
+  for i,name in ipairs({'body','tail','dorsal','pelvic','pectoral','eye'}) do
+   assert(Rig.drawPart(name,50+(i-1)*125,490,105,105),'Parte nao carregou: '..name)
+  end
+  print('OK LÖVE: rig Azul-Rubi com camadas reais')
+  love.event.quit(0)
+  return
+ end
  local sc,ox,oy=viewport()
  g.clear(.024,.09,.13)
  g.push('all');g.translate(ox,oy);g.scale(sc,sc)
