@@ -1,0 +1,58 @@
+name: Build original 4K fish matrix
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/build_hd_matrix.py
+      - .github/workflows/build-hd-matrix.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install vector image renderer
+        run: python -m pip install --disable-pip-version-check pillow cairosvg
+      - name: Generate 448 HD sprites and separate transparent 4K atlas
+        run: python scripts/build_hd_matrix.py --out assets/fish/hd --workers 4
+      - name: Check 441 normal and 7 magic sprites, size and isolated alpha
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import json
+          root=Path('assets/fish/hd')
+          meta=json.loads((root/'manifest.json').read_text())
+          assert meta['grid']==[21,21] and meta['cell']==[512,256]
+          assert meta['atlas']==[4096,2304] and meta['images']==448
+          sprites=list((root/'sprites').glob('*.png'))
+          assert len(sprites)==448,len(sprites)
+          for path in sprites:
+            with Image.open(path) as sprite:
+              assert sprite.size==(512,256) and sprite.mode=='RGBA'
+              bbox=sprite.getchannel('A').getbbox()
+              assert bbox and bbox[0]>=13 and bbox[1]>=13
+              assert bbox[2]<=499 and bbox[3]<=243,(path,bbox)
+          for name in ('catalog_4k.png','atlas_4k_rgba.png'):
+            with Image.open(root/name) as img:
+              assert img.size==(4096,2304)
+          assert Image.open(root/'atlas_4k_rgba.png').mode=='RGBA'
+          print('OK: all sprites fit independent fixed boxes; no overlap')
+          PY
+      - name: Publish generated 4K game art to main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/fish/hd/
+          if ! git diff --cached --quiet; then
+            git commit -m 'assets: 448 original HD sprites 512x256 and 4K catalog'
+            git push origin HEAD:main
+          fi
