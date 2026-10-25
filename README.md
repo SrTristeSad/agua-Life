@@ -1,78 +1,75 @@
-# agua-Life — matriz 21×21 jogável (Lua + LÖVE)
+# agua-Life — Matriz 4K com 441 peixes HD (Lua + LÖVE)
 
-Jogo original de aquário genético em **Lua + LÖVE 11.x**, com reprodução, doenças, pesquisas, alimentação, comércio, aquários e salvamentos.
+Jogo de aquário genético em Lua/LÖVE 11.x com reprodução, DNA, doenças, alimentação, comércio, pesquisas, dois aquários e salvamentos.
 
-## A matriz que aparece no jogo
+![Catálogo 4K com 21 corpos e 21 conjuntos de barbatanas](assets/fish/hd/catalog_4k.png)
 
-Agora **o cliente usa os próprios peixes da imagem escolhida**, não a reconstrução procedural anterior: a imagem foi transformada em um atlas RGBA de **441 células (21 corpos × 21 barbatanas)**, mais os **sete peixes especiais M0–M6**. O catálogo, os peixes nadando, o exame de DNA e as prévias utilizam o atlas. **Clique numa das 441 células do catálogo** para ampliar e visualizar a combinação nadando no painel lateral.
+## Nova arte HD — células sem invasão entre peixes
 
-![Sprites reais já recortados](assets/fish/matrix/atlas_441.png)
+A matriz foi **redesenhada com geometria vetorial e detalhes próprios**. A antiga imagem de 1672×941 continha peixes próximos demais e acabava puxando partes de outras células durante o recorte. Em vez de ampliar aqueles pixels, o gerador de alta definição cria cada peixe **sozinho em uma prancheta transparente**, verifica as margens e só então monta a matriz.
 
-Os genes de **corpo (C)** e **barbatanas (F)** escolhem qual sprite C×F aparece. Na reprodução, os alelos dos dois pais contribuem para o aspecto do filhote. Os genes de **paleta** e **estampa** também se manifestam visualmente: um shader GPU aplica mudanças controladas de tonalidade e marcas sobre a região do corpo sem substituir o desenho da matriz. O catálogo C×F mantém as cores originais da imagem-base. No **Laboratório de DNA (4)**, os botões **Cor +/-** e **Estampa +/-** mostram uma prévia interativa, sem alterar o genoma salvo.
+- **441 peixes C1–C21 × F1–F21**, mais **sete especiais M0–M6**.
+- **448 PNGs individuais RGBA de 512×256**, todos na mesma prancheta e com **margens transparentes mínimas de 13 pixels**.
+- **Catálogo 4K 4096×2304**, gerado a partir dos PNGs, não usado como fonte para recortá-los.
+- **Atlas 4K transparente separado**, destinado apenas a miniaturas da coleção para renderizar 441 células em uma única textura.
+- A arte contém escamas, sombreamento, olho, brânquias, diferenças de forma, marcações e **21 desenhos de barbatanas**. As sete combinações especiais possuem versões destacadas.
+- Os genes de corpo/cauda escolhem o PNG correspondente. Genes de paleta/estampa fazem alterações adicionais via shader GPU, sem alterar a transparência.
+- O aquário, o zoom lateral, a reprodução, o laboratório e o ateliê utilizam os **PNGs HD individuais**. O catálogo usa o atlas 4K com miniaturas.
 
-### Como a animação funciona
+A versão antiga permanece em `assets/fish/matrix/` como **fallback e referência**, sem ser utilizada como arte principal quando os sprites HD estão presentes. O `Fish-Tycoon-Lua` original continua intacto.
 
-O arquivo `art/matrix.lua` preserva cada peixe extraído como uma textura RGBA real. Durante o nado, uma **malha UV** divide virtualmente o corpo em regiões de cauda, dorsal e ventral, deformando essas regiões com movimentos diferentes e mantendo os pixels conectados. Isso evita rasgos nos sprites achatados. No **Ateliê**, os componentes ainda podem ser vistos como recortes independentes por Quads. Peixes doentes se movem mais devagar e com menor amplitude.
+### Movimento
 
-A imagem original tem resolução **1672×941**, com peixes pequenos; ampliar sprites não inventa detalhe. Algumas barbatanas invadem a célula vizinha na imagem achatada, então há imperfeições pontuais nos recortes. O sistema não finge ter uma malha 3D ou animação desenhada quadro a quadro.
+`art/hd_matrix.lua` carrega os sprites HD sob demanda, mantém cache limitado de 48 imagens e usa uma malha UV para mover suavemente cauda, dorsal e ventral **sem cortar o corpo em retângulos que deixam buracos**. O movimento fica mais lento se o peixe adoecer. O ateliê permite ver as regiões anatômicas do próprio sprite.
 
-A versão anterior de desenho procedural continua em `art/fish.lua` como fallback para instalações sem o atlas. O cliente normal prioriza sempre `art/matrix.lua`.
+Os desenhos continuam sendo imagens bidimensionais: a malha anima o contorno mas **não equivale a animações quadro a quadro ou um rig completo de todas as nadadeiras**. Também não aumenta magicamente a definição da imagem antiga: esta nova arte foi recriada como ilustração vetorial estilizada.
 
 ## Jogar no Windows
 
-1. Instale o [LÖVE 11.x](https://love2d.org).
-2. Abra a [última execução verde do GitHub Actions](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), baixe o artefato `agua-Life-playable` e extraia o ZIP.
-3. Dê dois cliques em `agua-Life-playable.love` (ou arraste o arquivo para `love.exe`).
-4. Escolha **Nova partida** ou **Continuar**.
+1. Instale [LÖVE 11.x](https://love2d.org).
+2. Acesse [GitHub Actions: Lua tests](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), abra a execução verde mais recente e baixe **agua-Life-Windows-HD-4K**.
+3. Extraia o ZIP, abra a pasta `agua-Life` e execute `INICIAR_WINDOWS.bat`.
+4. Entre em **Nova partida** ou **Continuar**.
 
-Alternativa: baixe o repositório, entre na pasta com `main.lua` e execute `INICIAR_WINDOWS.bat`.
+A versão compactada inclui todos os 448 PNGs de alta definição. Para executar o código-fonte baixado do repositório, use `love .` dentro da pasta do projeto.
 
-### Principais comandos
+### Comandos
 
-| Controle | Ação |
+| Entrada | Ação |
 |---|---|
-| Mouse | Selecionar peixes e botões |
-| 1 / 2 | Aquário principal / viveiro |
-| 3 / 4 | Loja / laboratório de DNA |
-| 5 / 6 | Catálogo 21×21 / ateliê de animação |
-| B | Escolher parceiro de cruzamento |
-| F / H | Alimentar / tratar doença |
-| F8 / F9 | Examinar DNA / necropsia |
-| J | Mostrar articulações no ateliê |
+| Mouse | Selecionar peixes e usar botões |
+| 1 / 2 | Aquário / viveiro |
+| 3 / 4 | Loja / laboratório DNA |
+| 5 / 6 | Catálogo 21×21 / ateliê |
+| B | Cruzar dois peixes adultos, escolhendo o segundo no aquário |
+| F / H | Alimentar / tratar |
+| F8 / F9 | Exame DNA / necropsia |
+| J | Exibir pontos da animação |
 | P / S | Pausar / salvar |
 | Escape | Voltar ao menu |
 
-A partida começa com quatro peixes, alimento, remédios e moedas. Cruzamentos incubam em quatro ciclos; a saúde evolui a cada seis segundos de jogo. Adultos podem ser vendidos, o segundo aquário pode ser desbloqueado e os dados são salvos em JSON com backup.
+Na coleção, clique em qualquer célula C×F para ver o peixe HD ampliado à direita. Na reprodução, os genes dos dois pais determinam o descendente. O DNA herdado continua salvo em JSON, sem mudança de formato nesta atualização.
 
-## Fonte da arte e regeneração
+## Código e geração
 
-Os seguintes arquivos estão versionados:
+- `scripts/build_hd_matrix.py`: desenho vetorial procedural **reproduzível** e produção dos 448 PNGs, matriz 4K, atlas e manifesto.
+- `assets/fish/hd/sprites/C01_F01.png` a `C21_F21.png`: sprites normais, todos 512×256.
+- `assets/fish/hd/sprites/M0.png` a `M6.png`: sete especiais.
+- `assets/fish/hd/catalog_4k.png`: catálogo completo 4096×2304 para inspeção.
+- `assets/fish/hd/atlas_4k_rgba.png`: atlas transparente 4K apenas de miniaturas.
+- `assets/fish/hd/manifest.json`: tamanho da matriz, margens, posições e pares mágicos.
+- `art/hd_matrix.lua`: runtime HD com sprites completos, cache e animação.
+- `art/matrix.lua`: compatibilidade com a antiga imagem fornecida.
+- `art/dna_visual.lua`: expressão visual do DNA por shader.
+- `game/play.lua`, `game/storage.lua`: regras, economia, ciclos e saves.
 
-- `assets/fish/matrix/atlas_441.png`: **atlas transparente usado no jogo**, com imagens reais das 441 combinações e sete especiais.
-- `assets/fish/matrix/atlas_441.json`: tamanho das células e posições.
-- `assets/fish/matrix/source_matrix.png.part01` e `source_matrix.png.part02`: os **bytes exatos da imagem recebida**, separados em dois fragmentos apenas para transporte. O extrator os junta automaticamente.
-- `scripts/extract_matrix.py`: gerador determinístico dos recortes (Pillow, NumPy e OpenCV).
-
-Para refazer o atlas a partir da fonte no próprio repositório:
+Para reconstruir todos os arquivos:
 
 ```bash
-python -m pip install pillow numpy opencv-python-headless
-python scripts/extract_matrix.py assets/fish/matrix/source_matrix.png assets/fish/matrix/atlas_441.png
+python -m pip install pillow cairosvg
+python scripts/build_hd_matrix.py --out assets/fish/hd --workers 4
 ```
 
-A operação mantém o mesmo atlas quando a fonte e a versão do exportador são iguais.
+O workflow [Build original 4K fish matrix](https://github.com/SrTristeSad/agua-Life/actions/workflows/build-hd-matrix.yml) executa a geração e versiona os PNGs. O workflow [Lua tests](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml) verifica os 448 arquivos, as margens transparentes, a renderização LÖVE e empacota o jogo.
 
-## Arquitetura e testes
-
-- `main.lua`: menu, telas e controles.
-- `game/play.lua`: economia, reprodução e ciclos biológicos.
-- `game/storage.lua`: saves e validação.
-- `genetics/dna.lua`, `genetics/health.lua`: hereditariedade e doenças.
-- `art/matrix.lua`: seleção de sprites por DNA, recortes Quads para inspeção e animação contínua da malha UV.
-- `art/dna_visual.lua`: tonalidade e marcas do fenótipo por shader, preservando o canal alfa.
-- `art/fish.lua`: renderizador procedural de contingência.
-- `fish-tycoon-reference/`: referência isolada para pesquisa, não incluída no pacote distribuído.
-
-Testes Lua verificam genética, índices da matriz e parâmetros visuais; o GitHub Actions testa também a **renderização LÖVE** da animação e do catálogo completo, incluindo comparação de pixels para confirmar que genes visuais alteram a cor, mas preservam a silhueta.
-
-**Estado:** protótipo jogável, com melhorias pendentes de arte, colisões, camadas anatômicas mais precisas e testes em dispositivos reais. O repositório `Fish-Tycoon-Lua` original não foi modificado.
+**Estado:** base jogável em evolução. Ainda são desejáveis melhorias no sistema de animação individual por espécie, equilíbrio de jogo e testes de desempenho em dispositivos reais.
