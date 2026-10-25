@@ -1,212 +1,188 @@
--- Matriz original enviada pelo usuario: 21 corpos x 21 conjuntos de nadadeiras.
--- Atlas RGBA gerado uma vez por scripts/extract_matrix.py.
--- O LOVE corta corpo/cauda/dorsal/ventral em memoria para anima-los de verdade.
--- As artes do Fish Tycoon de estudo NAO sao utilizadas aqui.
-local Matrix={}
-local g=love.graphics
-local atlas=nil
-local pixels=nil
-local attempted=false
-local sourcePath='assets/fish/matrix/atlas_441.png'
-local COLS,ROWS=21,21
+-- agua-Life | Matriz RGBA fornecida pelo usuário: 441 peixes e sete mágicos.
+-- O LÖVE recorta a textura em regiões (Quads) e anima juntas em tempo real.
+-- Nenhuma releitura procedural da arte: as cores/pixels são os do atlas.
+local M={}
+local lg=love.graphics
+local JSON=require('game.json')
+local ATLAS='assets/fish/matrix/atlas_441.png'
+local META='assets/fish/matrix/atlas_441.json'
 local CW,CH=128,64
 local MW,MH=384,136
-local AW,AH=COLS*CW,ROWS*CH+MH
-local quads={}
-local fragments={}
-local cached={}
-local cacheOrder={}
-local MAX_PART_CACHE=44
+local AW,AH=2688,1480
+local IMG=nil
+local attempted=false
+local metadata=nil
+local cache={}
+local order={'tail','dorsal','ventral','body','headTop','headBottom'}
 local magic={{21,17},{15,15},{12,12},{11,10},{6,9},{14,7},{8,8}}
-Matrix.magicPairs=magic
-Matrix.source=sourcePath
-Matrix.tileSize={CW,CH}
-Matrix.magicTileSize={MW,MH}
-local function spriteIndex(spec)
+M.magicPairs=magic
+M.source=ATLAS
+M.tileSize={CW,CH}
+M.magicTileSize={MW,MH}
+
+local function index(spec)
  if type(spec)~='table' or type(spec.body)~='number' or type(spec.fin)~='number'
-  or spec.body%1~=0 or spec.fin%1~=0 or spec.body<1 or spec.body>21
-  or spec.fin<1 or spec.fin>21 then return nil end
- for i,m in ipairs(magic) do
-  if spec.body==m[1] and spec.fin==m[2] then return 441+i,true end
+    or spec.body%1~=0 or spec.fin%1~=0 or spec.body<1 or spec.body>21
+    or spec.fin<1 or spec.fin>21 then return nil end
+ for i,p in ipairs(magic) do
+  if spec.body==p[1] and spec.fin==p[2] then return 441+i,true end
  end
- return (spec.body-1)*COLS+spec.fin,false
+ return (spec.body-1)*21+spec.fin,false
 end
-function Matrix.getIndex(spec)return spriteIndex(spec)end
-function Matrix.available()
- if atlas then return true end
+M.getIndex=index
+function M.available()
+ if IMG then return true end
  if attempted then return false end
  attempted=true
- if not love.filesystem.getInfo(sourcePath,'file') then return false end
- local ok,img=pcall(g.newImage,sourcePath,{mipmaps=false})
+ if not love.filesystem.getInfo(ATLAS,'file') then return false end
+ local ok,ret=pcall(lg.newImage,ATLAS,{mipmaps=false})
  if not ok then return false end
- if img:getWidth()~=AW or img:getHeight()~=AH then
-  img:release();return false
+ if ret:getWidth()~=AW or ret:getHeight()~=AH then ret:release();return false end
+ ret:setFilter('linear','linear')
+ IMG=ret
+ if love.filesystem.getInfo(META,'file') then
+  local data=love.filesystem.read(META)
+  local success,parsed=pcall(JSON.decode,data)
+  if success and type(parsed)=='table' then metadata=parsed end
  end
- img:setFilter('linear','linear')
- atlas=img
  return true
 end
-local function position(index,isMagic)
- if isMagic then
-  return (index-442)*MW,ROWS*CH,MW,MH
+local function tile(indexValue,magicFlag)
+ if magicFlag then return (indexValue-442)*MW,21*CH,MW,MH end
+ local num=indexValue-1
+ return (num%21)*CW,math.floor(num/21)*CH,CW,CH
+end
+local function measure(indexValue,mag,w,h)
+ if metadata then
+  local b
+  if mag then b=metadata.magic_bounds and metadata.magic_bounds[indexValue-441]
+  else
+   local row=math.floor((indexValue-1)/21)+1
+   local col=(indexValue-1)%21+1
+   b=metadata.bounds and metadata.bounds[row] and metadata.bounds[row][col]
+  end
+  if type(b)=='table' and #b==4 then return b end
  end
- local n=index-1
- return (n%21)*CW,math.floor(n/21)*CH,CW,CH
+ return {w*.24,h*.15,w*.75,h*.86}
 end
-local function quad(index,mag)
- local q=quads[index]
- if q then return q end
- local x,y,w,h=position(index,mag)
- q=g.newQuad(x,y,w,h,AW,AH)
- quads[index]=q
- return q
+local function rectangleQuad(tileX,tileY,box)
+ local x,y,ex,ey=box[1],box[2],box[3],box[4]
+ x=math.floor(math.max(0,x));y=math.floor(math.max(0,y))
+ ex=math.ceil(math.max(x+1,ex));ey=math.ceil(math.max(y+1,ey))
+ return {q=lg.newQuad(tileX+x,tileY+y,ex-x,ey-y,AW,AH),x=x,y=y}
 end
-local function drawTile(image,q,w,h,x,y,scale,dir,time,tint)
- g.push('all')
- g.setColor(1,1,1,1)
- g.translate(x,y)
- g.scale((dir or 1)*(scale or 1),(scale or 1))
- g.rotate(math.sin((time or 0)*2.8)*.012)
- g.draw(image,q,-w*.5,-h*.5)
- g.pop()
+local function fragments(indexValue,isMagic)
+ local existing=cache[indexValue]
+ if existing then return existing end
+ local tx,ty,w,h=tile(indexValue,isMagic)
+ local b=measure(indexValue,isMagic,w,h)
+ local minX,minY,maxX,maxY=b[1],b[2],b[3],b[4]
+ local spanX=maxX-minX;local spanY=maxY-minY
+ local cutX=math.floor(minX+spanX*.38)
+ local headX=math.floor(minX+spanX*.77)
+ local top=math.floor(minY+spanY*.32)
+ local bottom=math.floor(minY+spanY*.74)
+ local boxes={
+  tail={0,0,cutX+2,h},
+  dorsal={cutX-1,0,headX+1,top+2},
+  ventral={cutX-1,bottom-2,headX+1,h},
+  body={cutX-1,top,w,bottom},
+  headTop={headX,0,w,top+2},
+  headBottom={headX,bottom-2,w,h}
+ }
+ local regions={}
+ for key,rect in pairs(boxes) do regions[key]=rectangleQuad(tx,ty,rect) end
+ local centers={tail={cutX,(minY+maxY)/2},
+  dorsal={minX+spanX*.58,top},
+  ventral={minX+spanX*.58,bottom}}
+ existing={w=w,h=h,magic=isMagic,regions=regions,pivots=centers}
+ cache[indexValue]=existing
+ return existing
 end
-function Matrix.drawStatic(spec,x,y,scale,dir,time)
- local idx,magicFlag=spriteIndex(spec)
- if not idx or not Matrix.available() then return false end
- local w,h=magicFlag and MW or CW,magicFlag and MH or CH
- local normalization=magicFlag and .345 or 1
- drawTile(atlas,quad(idx,magicFlag),w,h,x,y,(scale or 1)*normalization,dir,time)
+local function drawRegion(region)
+ lg.draw(IMG,region.q,region.x,region.y)
+end
+local function rotatePart(region,pivot,radians)
+ lg.push()
+ lg.translate(pivot[1],pivot[2]);lg.rotate(radians)
+ lg.translate(-pivot[1],-pivot[2])
+ drawRegion(region)
+ lg.pop()
+end
+function M.drawStatic(spec,x,y,scale,direction,time)
+ local id,isMagic=index(spec)
+ if not id or not M.available() then return false end
+ local tileX,tileY,w,h=tile(id,isMagic)
+ local parts=fragments(id,isMagic)
+ if not parts.whole then parts.whole=lg.newQuad(tileX,tileY,w,h,AW,AH) end
+ lg.push('all')
+ lg.setColor(1,1,1,1)
+ lg.translate(x,y)
+ local s=(scale or 1)*(isMagic and .345 or 1)
+ lg.scale((direction or 1)*s,s)
+ lg.rotate(math.sin((time or 0)*2.8)*.012)
+ lg.draw(IMG,parts.whole,-w*.5,-h*.5)
+ lg.pop()
  return true
 end
-local function loadParts(index,isMagic)
- local entry=fragments[index]
- if entry then return entry end
- if not Matrix.available() then return nil end
- if not pixels then
-  -- Decode PNG apenas quando o primeiro peixe precisar nadar.
-  local ok,bitmap=pcall(love.image.newImageData,sourcePath)
-  if not ok then return nil end
-  pixels=bitmap
- end
- local sx,sy,w,h=position(index,isMagic)
- local base=love.image.newImageData(w,h)
- base:paste(pixels,0,0,sx,sy,w,h)
- local loX,loY,hiX,hiY=w,h,0,0
- for yy=0,h-1 do
-  for xx=0,w-1 do
-   local _,_,_,a=base:getPixel(xx,yy)
-   if a>.22 then
-    loX=math.min(loX,xx);loY=math.min(loY,yy)
-    hiX=math.max(hiX,xx);hiY=math.max(hiY,yy)
-   end
-  end
- end
- if loX>hiX then return nil end
- local spanX=hiX-loX+1
- local spanY=hiY-loY+1
- local middleY=(loY+hiY)*.5
- local cutX=loX+spanX*.38
- local dorsalPivot={loX+spanX*.58,loY+spanY*.36}
- local ventralPivot={loX+spanX*.62,loY+spanY*.67}
- local tailPivot={cutX,middleY}
- local names={'tail','dorsal','ventral','body'}
- local bitmaps={}
- for _,n in ipairs(names) do bitmaps[n]=love.image.newImageData(w,h) end
- for yy=0,h-1 do
-  for xx=0,w-1 do
-   local r,gg,b,a=base:getPixel(xx,yy)
-   if a>0 then
-    local component='body'
-    local tailRatio=math.min(1,math.max(0,(cutX+2.5-xx)/5))
-    local region=(xx>loX+spanX*.33 and xx<loX+spanX*.84)
-    if region and yy<loY+spanY*.31 then component='dorsal'
-    elseif region and yy>loY+spanY*.76 then component='ventral'
-    end
-    if tailRatio>=.999 then
-     bitmaps.tail:setPixel(xx,yy,r,gg,b,a)
-    elseif tailRatio>.001 then
-     -- Peso repartido entre corpo e cauda para não criar rasgo no encaixe.
-     bitmaps.tail:setPixel(xx,yy,r,gg,b,a*tailRatio)
-     bitmaps.body:setPixel(xx,yy,r,gg,b,a*(1-tailRatio))
-    else
-     bitmaps[component]:setPixel(xx,yy,r,gg,b,a)
-    end
-   end
-  end
- end
- local layers={}
- for _,n in ipairs(names) do
-  layers[n]=g.newImage(bitmaps[n],{mipmaps=false})
-  layers[n]:setFilter('linear','linear')
-  bitmaps[n]:release()
- end
- base:release()
- entry={images=layers,tailPivot=tailPivot,dorsalPivot=dorsalPivot,
-  ventralPivot=ventralPivot,w=w,h=h,magic=isMagic}
- fragments[index]=entry
- cacheOrder[#cacheOrder+1]=index
- if #cacheOrder>MAX_PART_CACHE then
-  local oldest=table.remove(cacheOrder,1)
-  local replaced=fragments[oldest]
-  if replaced then
-   for _,v in pairs(replaced.images) do v:release() end
-   fragments[oldest]=nil
-  end
- end
- return entry
-end
-local function jointDraw(layer,pivot,angle)
- g.push()
- g.translate(pivot[1],pivot[2]);g.rotate(angle)
- g.draw(layer,-pivot[1],-pivot[2])
- g.pop()
-end
-function Matrix.draw(spec,x,y,scale,face,time,health,joints)
- local index,isMagic=spriteIndex(spec)
- if not index or not Matrix.available() then return false end
- local entry=loadParts(index,isMagic)
- if not entry then return Matrix.drawStatic(spec,x,y,scale,face,time) end
+function M.draw(spec,x,y,scale,direction,time,health,joints)
+ local id,isMagic=index(spec)
+ if not id or not M.available() then return false end
+ local parts=fragments(id,isMagic)
  local t=time or 0
- local ill=health and health.disease and 0.42 or 1
- local speed=health and health.disease and 1.5 or 2.7
- local wave=t*speed
- local k=(scale or 1)*(isMagic and .345 or 1)
- g.push('all')
- g.setColor(1,1,1,1)
- g.translate(x,y+math.sin(wave*.7)*1.4*k*ill)
- g.scale((face or 1)*k,k)
- g.rotate(math.sin(wave)*.012*ill)
- g.translate(-entry.w*.5,-entry.h*.5)
- jointDraw(entry.images.tail,entry.tailPivot,math.sin(wave)*.20*ill)
- jointDraw(entry.images.dorsal,entry.dorsalPivot,math.sin(wave+.75)*.065*ill)
- jointDraw(entry.images.ventral,entry.ventralPivot,math.sin(wave+1.5)*.085*ill)
- g.draw(entry.images.body)
+ local ill=health and health.disease and .44 or 1
+ local rate=health and health.disease and 1.5 or 2.7
+ local wv=t*rate
+ local s=(scale or 1)*(isMagic and .345 or 1)
+ lg.push('all')
+ lg.setColor(1,1,1,1)
+ lg.translate(x,y+math.sin(wv*.8)*1.5*s*ill)
+ lg.scale((direction or 1)*s,s)
+ lg.rotate(math.sin(wv)*.013*ill)
+ lg.translate(-parts.w*.5,-parts.h*.5)
+ rotatePart(parts.regions.tail,parts.pivots.tail,math.sin(wv)*.17*ill)
+ rotatePart(parts.regions.dorsal,parts.pivots.dorsal,math.sin(wv+.7)*.045*ill)
+ rotatePart(parts.regions.ventral,parts.pivots.ventral,math.sin(wv+1.3)*.072*ill)
+ drawRegion(parts.regions.body)
+ drawRegion(parts.regions.headTop)
+ drawRegion(parts.regions.headBottom)
  if joints then
-  g.setLineWidth(1.2)
-  for _,pt in ipairs({entry.tailPivot,entry.dorsalPivot,entry.ventralPivot}) do
-   g.setColor(1,.87,.32,1);g.circle('line',pt[1],pt[2],4)
+  lg.setLineWidth(1.2)
+  for _,p in pairs(parts.pivots) do
+   lg.setColor(1,.86,.28,.95)
+   lg.circle('line',p[1],p[2],3.2)
   end
  end
- g.pop()
+ lg.pop()
  return true
 end
-function Matrix.drawPart(spec,part,x,y,w,h)
- local index,isMagic=spriteIndex(spec)
- if not index or not Matrix.available() then return false end
- local entry=loadParts(index,isMagic)
- if not entry or not entry.images[part] then return false end
- local image=entry.images[part]
- g.push('all')
- g.setColor(1,1,1,1)
- local scale=math.min((w or 80)/entry.w,(h or 55)/entry.h)
- g.draw(image,x+((w or 80)-entry.w*scale)/2,
-   y+((h or 55)-entry.h*scale)/2,0,scale,scale)
- g.pop()
+function M.drawPart(spec,part,x,y,width,height)
+ local id,isMagic=index(spec)
+ if not id or not M.available() then return false end
+ local p=fragments(id,isMagic)
+ local name=part
+ if part=='body' then name='body' end
+ if not p.regions[name] then return false end
+ lg.push('all')
+ lg.setColor(1,1,1,1)
+ local s=math.min((width or 80)/p.w,(height or 80)/p.h)
+ lg.translate(x+((width or 80)-p.w*s)*.5,y+((height or 80)-p.h*s)*.5)
+ lg.scale(s,s)
+ if part=='body' then
+  drawRegion(p.regions.body)
+  drawRegion(p.regions.headTop)
+  drawRegion(p.regions.headBottom)
+ else
+  drawRegion(p.regions[name])
+ end
+ lg.pop()
  return true
 end
-function Matrix.clearCache()
- for _,p in pairs(fragments) do for _,img in pairs(p.images) do img:release() end end
- fragments={};cacheOrder={}
- if pixels then pixels:release();pixels=nil end
+function M.clearCache()
+ for _,entry in pairs(cache) do
+  if entry.whole then entry.whole:release() end
+  for _,part in pairs(entry.regions) do part.q:release() end
+ end
+ cache={}
 end
-return Matrix
+return M

@@ -4,6 +4,7 @@ Preserva pixels desenhados; não inventa peixes nem interpola 441 sprites à mã
 Requisitos apenas para o exportador: Pillow + NumPy + OpenCV.
 """
 from pathlib import Path
+from io import BytesIO
 import argparse, json
 import cv2
 import numpy as np
@@ -73,7 +74,15 @@ def normalize(sprite,width,height):
  return dest,(left,top,left+piece.width,top+piece.height)
 
 def run(source,target):
- src=Image.open(source).convert('RGB')
+ src_file=Path(source)
+ if src_file.is_file():
+  src=Image.open(src_file).convert('RGB')
+ else:
+  first=Path(str(src_file)+'.part01')
+  second=Path(str(src_file)+'.part02')
+  if not first.is_file() or not second.is_file():
+   raise FileNotFoundError('Nem imagem original nem seus dois fragmentos foram encontrados: '+str(src_file))
+  src=Image.open(BytesIO(first.read_bytes()+second.read_bytes())).convert('RGB')
  if src.size!=SOURCE_SIZE:raise ValueError(f'Matriz de {SOURCE_SIZE} pixels necessária, recebida {src.size}')
  result=Image.new('RGBA',(ROWS*CW,ROWS*CH+MH))
  bounds=[]
