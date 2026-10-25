@@ -8,7 +8,7 @@ Agora **o cliente usa os próprios peixes da imagem escolhida**, não a reconstr
 
 ![Sprites reais já recortados](assets/fish/matrix/atlas_441.png)
 
-Os genes de **corpo (C)** e **barbatanas (F)** escolhem qual sprite C×F aparece. Na reprodução, os alelos de ambos os pais contribuem para o aspecto do filhote. Os genes adicionais de **paleta** e **estampa** continuam registrados no DNA, mas por enquanto **não criam novas imagens fora da matriz**: isso requer variações visuais adicionais.
+Os genes de **corpo (C)** e **barbatanas (F)** escolhem qual sprite C×F aparece. Na reprodução, os alelos dos dois pais contribuem para o aspecto do filhote. Os genes de **paleta** e **estampa** também se manifestam visualmente: um shader GPU aplica mudanças controladas de tonalidade e marcas sobre a região do corpo sem substituir o desenho da matriz. O catálogo C×F mantém as cores originais da imagem-base. No **Laboratório de DNA (4)**, os botões **Cor +/-** e **Estampa +/-** mostram uma prévia interativa, sem alterar o genoma salvo.
 
 ### Como a animação funciona
 
@@ -69,9 +69,10 @@ A operação mantém o mesmo atlas quando a fonte e a versão do exportador são
 - `game/storage.lua`: saves e validação.
 - `genetics/dna.lua`, `genetics/health.lua`: hereditariedade e doenças.
 - `art/matrix.lua`: seleção de sprites por DNA, recortes Quads para inspeção e animação contínua da malha UV.
+- `art/dna_visual.lua`: tonalidade e marcas do fenótipo por shader, preservando o canal alfa.
 - `art/fish.lua`: renderizador procedural de contingência.
 - `fish-tycoon-reference/`: referência isolada para pesquisa, não incluída no pacote distribuído.
 
-Testes Lua verificam genética e índices da matriz; o GitHub Actions testa também a **renderização LÖVE** da animação e do catálogo completo.
+Testes Lua verificam genética, índices da matriz e parâmetros visuais; o GitHub Actions testa também a **renderização LÖVE** da animação e do catálogo completo, incluindo comparação de pixels para confirmar que genes visuais alteram a cor, mas preservam a silhueta.
 
 **Estado:** protótipo jogável, com melhorias pendentes de arte, colisões, camadas anatômicas mais precisas e testes em dispositivos reais. O repositório `Fish-Tycoon-Lua` original não foi modificado.
