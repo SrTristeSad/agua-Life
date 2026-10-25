@@ -1,0 +1,33 @@
+name: Importar motor de referência Fish Tycoon Lua
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-reference.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout agua-Life
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Buscar a base canônica sem tocar no repositório original
+        run: |
+          git clone --depth 1 https://github.com/SrTristeSad/Fish-Tycoon-Lua.git /tmp/fish-tycoon-lua
+          mkdir -p fish-tycoon-reference
+          cp -a /tmp/fish-tycoon-lua/. fish-tycoon-reference/
+          rm -rf fish-tycoon-reference/.git fish-tycoon-reference/.github
+      - name: Registrar a cópia em pasta isolada
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add fish-tycoon-reference/
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: copiar motor Fish Tycoon Lua 1:1 para referencia separada'
+            git push origin HEAD:main
+          fi
