@@ -72,7 +72,7 @@ vec4 effect(vec4 color,Image tex,vec2 textureCoords,vec2 screenCoords) {
  return vec4(rgb,px.a)*color;
 }
 ]]
-function DNAVisual.getShader(spec,x,y,w,h)
+function DNAVisual.getShader(spec,x,y,w,h,atlasWidth,atlasHeight)
  if failed then return nil end
  if not (love and love.graphics and love.graphics.newShader) then return nil end
  if not shader then
@@ -85,8 +85,10 @@ function DNAVisual.getShader(spec,x,y,w,h)
  shader:send('hueShift',params.hueShift)
  shader:send('patternType',params.pattern)
  shader:send('patternStrength',params.patternStrength)
- shader:send('atlasOrigin',{x/2688,y/1480})
- shader:send('atlasSize',{w/2688,h/1480})
+ atlasWidth=atlasWidth or 2688
+ atlasHeight=atlasHeight or 1480
+ shader:send('atlasOrigin',{x/atlasWidth,y/atlasHeight})
+ shader:send('atlasSize',{w/atlasWidth,h/atlasHeight})
  return shader
 end
 return DNAVisual
