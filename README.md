@@ -1,75 +1,77 @@
-# agua-Life — base jogável 0.1 (Lua + LÖVE)
+# agua-Life — matriz 21×21 jogável (Lua + LÖVE)
 
-Aquário original com **criação de peixes, DNA combinável, dinheiro, comida, remédios, doenças, reprodução, nascimento, vendas e salvamento**. Funciona em Windows, Linux e plataformas compatíveis com **LÖVE 11.x**. Não usa WebView, Flutter ou servidor externo.
+Jogo original de aquário genético em **Lua + LÖVE 11.x**, com reprodução, doenças, pesquisas, alimentação, comércio, aquários e salvamentos.
 
-O objetivo visual é a matriz **21 corpos (C1–C21) × 21 caudas/barbatanas (F1–F21) = 441 combinações**. A arte é original, inspirada no princípio modular de criação de peixes, sem reutilizar sprites comerciais no jogo novo. Cor e estampa acrescentam variações.
+## A matriz que aparece no jogo
 
-## Jogar
+Agora **o cliente usa os próprios peixes da imagem escolhida**, não a reconstrução procedural anterior: a imagem foi transformada em um atlas RGBA de **441 células (21 corpos × 21 barbatanas)**, mais os **sete peixes especiais M0–M6**. O catálogo, os peixes nadando, o exame de DNA e as prévias utilizam o atlas.
 
-1. Instale [LÖVE 11.x](https://love2d.org).
-2. Na página [Actions > Lua tests](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), abra a execução mais recente com status **verde** e baixe o artefato **agua-Life-playable**.
-3. Extraia o ZIP. Abra **agua-Life-playable.love** com o LÖVE (duplo clique após associar a extensão ou comando love agua-Life-playable.love).
-4. Na tela inicial, clique em **NOVA PARTIDA**. Nas próximas visitas, use **CONTINUAR**.
+![Sprites reais já recortados](assets/fish/matrix/atlas_441.png)
 
-Também é possível baixar este repositório e rodar a pasta diretamente usando love .; no Windows, pode usar INICIAR_WINDOWS.bat.
+Os genes de **corpo (C)** e **barbatanas (F)** escolhem qual sprite C×F aparece. Na reprodução, os alelos de ambos os pais contribuem para o aspecto do filhote. Os genes adicionais de **paleta** e **estampa** continuam registrados no DNA, mas por enquanto **não criam novas imagens fora da matriz**: isso requer variações visuais adicionais.
 
-### O que já dá para jogar
+### Como a animação funciona
 
-- **Quatro peixes iniciais**, sendo três adultos para cruzar imediatamente.
-- **Ração** para manter os peixes alimentados, **remédios** contra fungos e íctio.
-- **Cruzamento de dois adultos**: escolhe um peixe, ativa Cruzar e clica no segundo. Filhote nasce após **4 ciclos** (24 segundos com o jogo rodando).
-- **DNA herdável**: dois alelos por gene; o filhote manifesta uma combinação intermediária de **corpo, cauda, cor e estampa**, e mantém os alelos herdados para futuros cruzamentos.
-- **Dinheiro**: venda peixes adultos e compre ração, medicamentos, ovos e melhorias.
-- **Aquário 2**: desbloqueável na loja, com capacidade para 14 peixes (14 no primeiro também).
-- **Pesquisa de cuidado**: três níveis de melhora na recuperação.
-- **Doenças, fome, envelhecimento e morte**; necropsia indica uma **causa provável**, não um diagnóstico definitivo.
-- **Coleção de 441 combinações** em matriz visual C×F, com destaque para descobertas.
-- **Sete combinações raras** com valor maior.
-- **Salvamento automático**, save manual, backup e arquivo da partida antiga ao iniciar uma nova.
-- **Ateliê** do peixe Azul-Rubi com peças PNG independentes, nadadeiras animadas e marcas de articulação.
+O arquivo `art/matrix.lua` usa Quads do LÖVE para **recortar a cauda, a nadadeira dorsal, a ventral e a área central do peixe** a partir do sprite transparente. O recorte acontece em memória, sem gerar centenas de PNGs pequenos em disco. Cauda e nadadeiras giram em pivôs próprios; peixes doentes se movem de modo mais lento.
 
-### Controles
+A imagem original tem resolução **1672×941**, com peixes pequenos; ampliar sprites não inventa detalhe. Algumas barbatanas invadem a célula vizinha na imagem achatada, então há imperfeições pontuais nos recortes. O sistema não finge ter uma malha 3D ou animação desenhada quadro a quadro.
 
-| Tecla | Ação |
+A versão anterior de desenho procedural continua em `art/fish.lua` como fallback para instalações sem o atlas. O cliente normal prioriza sempre `art/matrix.lua`.
+
+## Jogar no Windows
+
+1. Instale o [LÖVE 11.x](https://love2d.org).
+2. Abra a [última execução verde do GitHub Actions](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), baixe o artefato `agua-Life-playable` e extraia o ZIP.
+3. Dê dois cliques em `agua-Life-playable.love` (ou arraste o arquivo para `love.exe`).
+4. Escolha **Nova partida** ou **Continuar**.
+
+Alternativa: baixe o repositório, entre na pasta com `main.lua` e execute `INICIAR_WINDOWS.bat`.
+
+### Principais comandos
+
+| Controle | Ação |
 |---|---|
 | Mouse | Selecionar peixes e botões |
 | 1 / 2 | Aquário principal / viveiro |
-| 3 / 4 | Loja / Laboratório de DNA |
-| 5 / 6 | Coleção 21×21 / Ateliê |
-| F | Alimentar peixe selecionado |
-| H | Tratar peixe doente |
-| B | Iniciar cruzamento; depois clicar em outro peixe adulto |
-| F8 / F9 | Exame de DNA / necropsia |
-| P ou Espaço | Pausar a simulação |
-| J | Ver juntas da animação modular |
-| S | Salvar |
-| Escape | Fechar janela, cancelar seleção de parceiro ou voltar ao menu |
+| 3 / 4 | Loja / laboratório de DNA |
+| 5 / 6 | Catálogo 21×21 / ateliê de animação |
+| B | Escolher parceiro de cruzamento |
+| F / H | Alimentar / tratar doença |
+| F8 / F9 | Examinar DNA / necropsia |
+| J | Mostrar articulações no ateliê |
+| P / S | Pausar / salvar |
+| Escape | Voltar ao menu |
 
-A loja, o laboratório e todas as telas têm botões para utilizar a interface sem teclado.
+A partida começa com quatro peixes, alimento, remédios e moedas. Cruzamentos incubam em quatro ciclos; a saúde evolui a cada seis segundos de jogo. Adultos podem ser vendidos, o segundo aquário pode ser desbloqueado e os dados são salvos em JSON com backup.
 
-## Corrigir erro de caminho no Windows
+## Fonte da arte e regeneração
 
-Caso o LÖVE exiba `Cannot load game at path '...agua-Life-main"'`, isso era causado pelo iniciador antigo: `%~dp0` termina em barra invertida e era passado ao LÖVE com aspas que podiam virar um caractere literal no caminho. O iniciador foi corrigido para usar `%~dp0.` (caminho normalizado, sem barra final) e também abrir um `.love` caso esteja ao lado do BAT.
+Os seguintes arquivos estão versionados:
 
-**Se você já tem a pasta antiga:** atualize somente o arquivo `INICIAR_WINDOWS.bat` a partir deste repositório e execute-o novamente. Alternativamente, com LÖVE instalado, arraste a pasta que contém `main.lua` sobre `love.exe`, ou execute no terminal `love .` de dentro dessa pasta.
+- `assets/fish/matrix/atlas_441.png`: **atlas transparente usado no jogo**, com imagens reais das 441 combinações e sete especiais.
+- `assets/fish/matrix/atlas_441.json`: tamanho das células e posições.
+- `assets/fish/matrix/source_matrix.png.part01` e `source_matrix.png.part02`: os **bytes exatos da imagem recebida**, separados em dois fragmentos apenas para transporte. O extrator os junta automaticamente.
+- `scripts/extract_matrix.py`: gerador determinístico dos recortes (Pillow, NumPy e OpenCV).
 
-Existe também um teste automatizado no GitHub Actions, em `windows-launch-smoke.yml`, que verifica caminhos com espaços e arquivos `.love` num Windows real.
+Para refazer o atlas a partir da fonte no próprio repositório:
 
-## Arquitetura
+```bash
+python -m pip install pillow numpy opencv-python-headless
+python scripts/extract_matrix.py assets/fish/matrix/source_matrix.png assets/fish/matrix/atlas_441.png
+```
 
-- **main.lua** — telas e interações do cliente.
-- **game/play.lua** — simulação, economia, reprodução, morte e progressão sem dependência de LÖVE; testes determinísticos.
-- **game/storage.lua + game/json.lua** — gravação JSON com validação, backup e arquivamento da partida anterior.
-- **genetics/dna.lua + genetics/health.lua** — expressão genética e fisiologia.
-- **art/fish.lua** — 21 silhuetas procedurais × 21 barbatanas, cor e padrão.
-- **art/rigged_fish.lua + assets/fish/azul_rubi/** — arte do Azul-Rubi em 12 camadas RGBA, animada pelo motor.
-- **fish-tycoon-reference/** — cópia separada para estudo, não utilizada nem incluída no pacote .love distribuído.
+A operação mantém o mesmo atlas quando a fonte e a versão do exportador são iguais.
 
-## Desenvolvimento e testes
+## Arquitetura e testes
 
-A integração roda no GitHub Actions, incluindo testes puros em Lua, validação dos PNGs transparentes e renderização real em LÖVE sob X virtual.
+- `main.lua`: menu, telas e controles.
+- `game/play.lua`: economia, reprodução e ciclos biológicos.
+- `game/storage.lua`: saves e validação.
+- `genetics/dna.lua`, `genetics/health.lua`: hereditariedade e doenças.
+- `art/matrix.lua`: seleção de sprites por DNA, recortes Quads e animação.
+- `art/fish.lua`: renderizador procedural de contingência.
+- `fish-tycoon-reference/`: referência isolada para pesquisa, não incluída no pacote distribuído.
 
-Com Lua 5.4: lua tests/game_play.lua && lua tests/genetics.lua.
-Com LÖVE 11.x: love .
+Testes Lua verificam genética e índices da matriz; o GitHub Actions testa também a **renderização LÖVE** da animação e do catálogo completo.
 
-**Status:** base jogável funcional, não um clone 1:1 completo do Fish Tycoon. Os 441 peixes do catálogo são atualmente desenhados por uma combinação procedural de corpos e caudas, e apenas o **Azul-Rubi** tem sprite HD modular próprio. Ainda faltam melhorias de animação dos demais corpos, som, múltiplos cenários e maior profundidade nas pesquisas.
+**Estado:** protótipo jogável, com melhorias pendentes de arte, colisões, camadas anatômicas mais precisas e testes em dispositivos reais. O repositório `Fish-Tycoon-Lua` original não foi modificado.
