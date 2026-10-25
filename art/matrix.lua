@@ -125,37 +125,102 @@ function M.drawStatic(spec,x,y,scale,direction,time)
  lg.pop()
  return true
 end
+-- Deformação contínua dos grupos anatómicos na malha UV: a cauda e
+-- nadadeiras mexem independentemente, mas a pele permanece conectada.
+-- É mais fiel para sprites originais achatados que girar retângulos rígidos.
+local skeletal={}
+local divisionsX,divisionsY=18,10
+local function between(v,a,b)
+ return math.max(a,math.min(b,v))
+end
+local function makeMesh(indexValue,isMagic)
+ local tx,ty,w,h=tile(indexValue,isMagic)
+ local b=measure(indexValue,isMagic,w,h)
+ local vertices={}
+ local function append(x,y)
+  vertices[#vertices+1]={x,y,(tx+x)/AW,(ty+y)/AH}
+ end
+ for iy=0,divisionsY-1 do
+  local y0=iy*h/divisionsY
+  local y1=(iy+1)*h/divisionsY
+  for ix=0,divisionsX-1 do
+   local x0=ix*w/divisionsX
+   local x1=(ix+1)*w/divisionsX
+   append(x0,y0);append(x1,y0);append(x1,y1)
+   append(x0,y0);append(x1,y1);append(x0,y1)
+  end
+ end
+ local m=lg.newMesh(vertices,'triangles','dynamic')
+ m:setTexture(IMG)
+ local item={mesh=m,base=vertices,bounds=b,w=w,h=h,
+  tx=tx,ty=ty,count=#vertices}
+ skeletal[indexValue]=item
+ return item
+end
+function M.pose(t,health)
+ t=tonumber(t) or 0
+ local ill=health and health.disease and .45 or 1
+ local rate=health and health.disease and 1.5 or 2.7
+ local wv=t*rate
+ return {wave=wv,
+  tail=math.sin(wv)*.17*ill,
+  dorsal=math.sin(wv+.7)*.045*ill,
+  ventral=math.sin(wv+1.3)*.072*ill,
+  body=math.sin(wv)*.013*ill,
+  bob=math.sin(wv*.8)*1.5*ill,
+  amplitude=ill}
+end
+local function moveVertex(x,y,b,pose)
+ local minX,minY,maxX,maxY=b[1],b[2],b[3],b[4]
+ local sx=math.max(1,maxX-minX)
+ local sy=math.max(1,maxY-minY)
+ local nx=(x-minX)/sx
+ local ny=(y-minY)/sy
+ -- Cauda: flexão progressiva que zera na base, sem cortes e sem buracos.
+ local tail=between((.45-nx)/.65,0,1)
+ local displacementY=pose.tail*sy*.82*tail*tail
+ local displacementX=math.cos(pose.wave)*sx*.018*tail
+ -- Dorsal e ventral só deformam as regiões superiores/inferiores.
+ local mid=between((nx-.18)/.18,0,1)*between((.92-nx)/.20,0,1)
+ local dorsal=between((.34-ny)/.34,0,1)*mid
+ local ventral=between((ny-.69)/.31,0,1)*mid
+ displacementY=displacementY+pose.dorsal*sy*.57*dorsal
+ displacementY=displacementY+pose.ventral*sy*.50*ventral
+ return x+displacementX,y+displacementY
+end
 function M.draw(spec,x,y,scale,direction,time,health,joints)
  local id,isMagic=index(spec)
  if not id or not M.available() then return false end
- local parts=fragments(id,isMagic)
- local t=time or 0
- local ill=health and health.disease and .44 or 1
- local rate=health and health.disease and 1.5 or 2.7
- local wv=t*rate
+ local entry=skeletal[id] or makeMesh(id,isMagic)
+ local pose=M.pose(time,health)
+ local b=entry.bounds
+ local verts={}
+ for i,orig in ipairs(entry.base) do
+  local vx,vy=moveVertex(orig[1],orig[2],b,pose)
+  verts[i]={vx,vy,orig[3],orig[4]}
+ end
+ entry.mesh:setVertices(verts)
  local s=(scale or 1)*(isMagic and .345 or 1)
  lg.push('all')
  lg.setColor(1,1,1,1)
- lg.translate(x,y+math.sin(wv*.8)*1.5*s*ill)
+ lg.translate(x,y+pose.bob*s)
  lg.scale((direction or 1)*s,s)
- lg.rotate(math.sin(wv)*.013*ill)
- lg.translate(-parts.w*.5,-parts.h*.5)
- rotatePart(parts.regions.tail,parts.pivots.tail,math.sin(wv)*.17*ill)
- rotatePart(parts.regions.dorsal,parts.pivots.dorsal,math.sin(wv+.7)*.045*ill)
- rotatePart(parts.regions.ventral,parts.pivots.ventral,math.sin(wv+1.3)*.072*ill)
- drawRegion(parts.regions.body)
- drawRegion(parts.regions.headTop)
- drawRegion(parts.regions.headBottom)
+ lg.rotate(pose.body)
+ lg.translate(-entry.w*.5,-entry.h*.5)
+ lg.draw(entry.mesh)
  if joints then
-  lg.setLineWidth(1.2)
-  for _,p in pairs(parts.pivots) do
+  local pivots=fragments(id,isMagic).pivots
+  for _,p in pairs(pivots) do
    lg.setColor(1,.86,.28,.95)
+   lg.setLineWidth(1.2)
    lg.circle('line',p[1],p[2],3.2)
   end
  end
  lg.pop()
  return true
 end
+-- Os mesmos recortes RGBA permanecem disponíveis no Ateliê para
+-- visualizar as peças separadas, sem convertê-las em sprites fictícios.
 function M.drawPart(spec,part,x,y,width,height)
  local id,isMagic=index(spec)
  if not id or not M.available() then return false end
@@ -179,6 +244,10 @@ function M.drawPart(spec,part,x,y,width,height)
  return true
 end
 function M.clearCache()
+ for _,entry in pairs(skeletal) do
+  if entry.mesh then entry.mesh:release() end
+ end
+ skeletal={}
  for _,entry in pairs(cache) do
   if entry.whole then entry.whole:release() end
   for _,part in pairs(entry.regions) do part.q:release() end
