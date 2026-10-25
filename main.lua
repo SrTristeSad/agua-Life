@@ -2,6 +2,7 @@
 local C=require('art.catalog')
 local Art=require('art.fish')
 local Matrix=require('art.matrix')
+local HD=require('art.hd_matrix')
 local Rig=require('art.rigged_fish')
 local DNA=require('genetics.dna')
 local Health=require('genetics.health')
@@ -113,6 +114,9 @@ local function resume()
 end
 local function drawFish(spec,x,y,scale,face,t,health,showJoints)
  local k=scale or 1
+ -- Primeiro os 448 sprites de 512x256 em caixas individuais; o atlas
+ -- antigo só existe como fallback para instalações incompletas.
+ if HD.draw(spec,x,y,k*1.62,face,t,health,showJoints) then return end
  if Matrix.draw(spec,x,y,k*1.62,face,t,health,showJoints) then return end
  if Rig.supports(spec) and Rig.draw(spec,x,y,k*.60,face,t,health,showJoints) then return end
  Art.draw(spec,x,y,k,face,t*3.1)
@@ -248,8 +252,10 @@ local function sidebar()
   text('AMPLIAR COMBINACAO',867,151,titleFont)
   text('C'..body..' + F'..fin,870,188,titleFont,255,226,152)
   rect(866,224,271,202,12,19,77,100)
-  if not Matrix.draw(spec,1000,325,2.8,1,clock,nil,joints) then
-   drawFish(spec,1000,325,1.6,1,clock)
+  if not HD.draw(spec,1000,325,2.45,1,clock,nil,joints) then
+   if not Matrix.draw(spec,1000,325,2.8,1,clock,nil,joints) then
+    drawFish(spec,1000,325,1.6,1,clock)
+   end
   end
   local bodyName=C.bodies[body].name
   local finName=C.fins[fin].name
@@ -403,9 +409,10 @@ local function lab()
 end
 local function collection()
  rect(27,135,801,564,12,24,65,86)
- text('CATALOGO GENETICO  -  21 CORPOS x 21 CAUDAS',46,148,titleFont,219,243,242)
+ text('CATALOGO GENETICO  |  21 x 21',46,148,titleFont,219,243,242)
+ text(HD.available() and 'SPRITES HD • 4K' or 'ATLAS DE COMPATIBILIDADE',49,178,fontTiny,148,216,218)
  local count=0;for _,seen in pairs(world.s.discovered) do if seen then count=count+1 end end
- text('Descobertos: '..count..'/441',585,155,small,254,222,159)
+ text('Descobertos: '..count..'/441',649,153,fontTiny,254,222,159)
  local x0=76;local y0=204;local dx=35.0;local dy=21.1
  for tail=1,21 do
   center('F'..tail,x0+(tail-1)*dx-16,180,34,fontTiny,177,219,228)
@@ -424,7 +431,8 @@ local function collection()
     g.setLineWidth(1.5)
     g.rectangle('line',x-17,y-11,34,22,4,4)
    end
-   if not Matrix.drawStatic(spec,x,y,.33,1,clock*.24+body*.15) then
+   if not HD.drawStatic(spec,x,y,.33,1,clock*.24+body*.15) and
+      not Matrix.drawStatic(spec,x,y,.33,1,clock*.24+body*.15) then
     Art.draw(spec,x,y,.185,1,clock*2+body*.15)
    end
    local row,col=body,tail
@@ -440,21 +448,25 @@ local function collection()
 end
 local function atelier()
  rect(27,135,801,564,12,20,61,78)
- text('ATELIE DE ANIMACAO  |  MATRIZ C x F',52,154,titleFont)
- text('Recortes da imagem: corpo, cauda, dorsal e ventral animados.',52,189,small,184,225,224)
+ text('ATELIE DE ANIMACAO  |  PEIXE HD 512x256',52,154,titleFont)
+ text('Sprite individual vetorial: malha suave de cauda e nadadeiras.',52,189,small,184,225,224)
  rect(57,223,739,267,12,21,80,94)
  local f=activeFish()
  local spec=f and f.spec or C.get(1,1,3,1)
- if not Matrix.draw(spec,410,355,2.4,1,clock,f and f.health or nil,joints) then
-  drawFish(spec,410,355,2,1,clock,f and f.health)
-  text('Coloque atlas_441.png em assets/fish/matrix para ativar os sprites.',75,476,small)
+ if not HD.draw(spec,410,355,2.3,1,clock,f and f.health or nil,joints) then
+  if not Matrix.draw(spec,410,355,2.4,1,clock,f and f.health or nil,joints) then
+   drawFish(spec,410,355,2,1,clock,f and f.health)
+  end
+  text('Sem sprites HD. Instale assets/fish/hd para usar a matriz nova.',75,476,small)
  end
  local labels={{'CORPO','body'},{'CAUDA','tail'},
   {'DORSAL','dorsal'},{'VENTRAL','ventral'}}
  for i,item in ipairs(labels) do
   local x=72+(i-1)*177
   rect(x,519,162,150,10,61,80,10)
-  Matrix.drawPart(spec,item[2],x+7,529,148,109)
+  if not HD.drawPart(spec,item[2],x+7,529,148,109) then
+   Matrix.drawPart(spec,item[2],x+7,529,148,109)
+  end
   center(item[1],x,646,162,fontTiny)
  end
  addButton(joints and 'Ocultar juntas [J]' or 'Ver juntas [J]',538,171,241,31,function()joints=not joints end)
@@ -597,6 +609,19 @@ end
 function love.draw()
  -- Testa o atlas inteiro e as peças cortadas com a GPU real, sem ficar
  -- parado no menu de título durante os testes automatizados.
+ if os.getenv('AGUA_HD_SMOKE')=='1' then
+  assert(HD.available(),'Sprites de alta resolucao ausentes')
+  local a=C.get(4,21,2,1)
+  local b=C.get(21,17,3,4)
+  g.clear(.01,.12,.18)
+  assert(HD.draw(a,310,270,1.38,1,clock,nil,true))
+  assert(HD.draw(b,670,270,1.38,1,clock,nil,true))
+  assert(HD.drawStatic(a,310,515,.83,1,clock))
+  assert(HD.drawPart(b,'tail',660,450,220,175))
+  print('OK native LOVE: HD sprites, mesh, 4K catalog and fin isolation')
+  love.event.quit(0)
+  return
+ end
  if os.getenv('AGUA_MATRIX_SMOKE')=='1' then
   assert(Matrix.available(),'O atlas de 441 peixes não foi encontrado')
   assert(require('art.dna_visual').getShader(C.get(1,1,6,2),0,0,128,64),
