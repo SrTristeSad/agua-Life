@@ -1,0 +1,135 @@
+{
+  "name": "Azul-Rubi",
+  "source": "Desenho original em SVG, sem sprites de terceiros",
+  "canvas": [
+    320,
+    180
+  ],
+  "png": [
+    640,
+    360
+  ],
+  "scale": 2,
+  "facing": "right",
+  "draw_order": [
+    "tail",
+    "dorsal",
+    "pelvic",
+    "body",
+    "pattern_1",
+    "pectoral",
+    "eye"
+  ],
+  "pivots": {
+    "tail": [
+      110,
+      94
+    ],
+    "dorsal": [
+      187,
+      64
+    ],
+    "pelvic": [
+      176,
+      121
+    ],
+    "pectoral": [
+      245,
+      104
+    ],
+    "eye": [
+      273,
+      85
+    ]
+  },
+  "bounds": {
+    "tail": [
+      6,
+      12,
+      114,
+      164
+    ],
+    "dorsal": [
+      145,
+      8,
+      230,
+      75
+    ],
+    "pelvic": [
+      135,
+      115,
+      204,
+      177
+    ],
+    "body": [
+      94,
+      54,
+      299,
+      137
+    ],
+    "pectoral": [
+      187,
+      98,
+      262,
+      150
+    ],
+    "eye": [
+      261,
+      73,
+      287,
+      99
+    ],
+    "pattern_1": [
+      97,
+      55,
+      297,
+      132
+    ],
+    "pattern_2": [
+      97,
+      55,
+      297,
+      132
+    ],
+    "pattern_3": [
+      97,
+      55,
+      297,
+      132
+    ],
+    "pattern_4": [
+      97,
+      55,
+      297,
+      132
+    ],
+    "pattern_5": [
+      97,
+      55,
+      297,
+      132
+    ],
+    "pattern_6": [
+      97,
+      55,
+      297,
+      132
+    ]
+  },
+  "dna": {
+    "body": [
+      1
+    ],
+    "fin": [
+      1
+    ],
+    "palette": [
+      1,
+      12
+    ],
+    "pattern": [
+      1,
+      6
+    ]
+  }
+}
