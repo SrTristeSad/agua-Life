@@ -32,6 +32,9 @@ assert(w:buy('egg') and #w.s.fish==5)
 assert(w:buy('nursery') and w.s.upgrades.nursery)
 local fish=w:find(2)
 assert(w:transfer(fish.id) and fish.room=='nursery')
+assert(not w:buy('care'),'uma pesquisa sem dinheiro deve ser bloqueada')
+-- Credito apenas da fixture de teste para exercitar upgrades caros.
+w.s.cash=700
 assert(w:buy('care') and w.s.upgrades.care==1)
 assert(w:buy('food') and w:buy('medicine'))
 local victim=w:find(3)
