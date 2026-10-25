@@ -1,54 +1,67 @@
-# agua-Life — peixes vivos com arte modular e DNA
+# agua-Life — base jogável 0.1 (Lua + LÖVE)
 
-Jogo em **Lua + LÖVE 11.x**. O aquário possui 21 formas de corpo, 21 caudas, 12 paletas e 6 padrões decorativos, além de genética e simulação básica de saúde.
+Aquário original com **criação de peixes, DNA combinável, dinheiro, comida, remédios, doenças, reprodução, nascimento, vendas e salvamento**. Funciona em Windows, Linux e plataformas compatíveis com **LÖVE 11.x**. Não usa WebView, Flutter ou servidor externo.
 
-## Primeiro peixe original animado: Azul-Rubi
+O objetivo visual é a matriz **21 corpos (C1–C21) × 21 caudas/barbatanas (F1–F21) = 441 combinações**. A arte é original, inspirada no princípio modular de criação de peixes, sem reutilizar sprites comerciais no jogo novo. Cor e estampa acrescentam variações.
 
-![Azul-Rubi montado](assets/fish/azul_rubi/preview.png)
+## Jogar
 
-[Ver a animação real em GIF](assets/fish/azul_rubi/swim.gif)
+1. Instale [LÖVE 11.x](https://love2d.org).
+2. Na página [Actions > Lua tests](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), abra a execução mais recente com status **verde** e baixe o artefato **agua-Life-playable**.
+3. Extraia o ZIP. Abra **agua-Life-playable.love** com o LÖVE (duplo clique após associar a extensão ou comando love agua-Life-playable.love).
+4. Na tela inicial, clique em **NOVA PARTIDA**. Nas próximas visitas, use **CONTINUAR**.
 
-O exemplar **Azul-Rubi** foi criado do zero como ilustração vetorial, exportada para **12 camadas PNG transparentes de 640×360** e SVGs editáveis. Partes independentes do peixe:
+Também é possível baixar este repositório e rodar a pasta diretamente usando love .; no Windows, pode usar INICIAR_WINDOWS.bat.
 
-- Corpo com escamas e sombras; cauda articulada; dorsal; ventral; peitoral; olhos.
-- Seis camadas de estampas, cada uma selecionada pelo gene `pattern`.
-- Recoloração por paleta genética em shader, com 12 variações visuais.
-- Nado com oscilação do corpo, cauda e nadadeiras, piscada ocasional e amplitude reduzida quando doente.
+### O que já dá para jogar
 
-A matriz genética atual permite **72 visuais** do Azul-Rubi (12 paletas × 6 estampas). Mudanças de corpo/cauda ainda recorrem ao renderizador procedural do aquário: **somente um modelo recebeu camadas PNG nesta etapa**.
+- **Quatro peixes iniciais**, sendo três adultos para cruzar imediatamente.
+- **Ração** para manter os peixes alimentados, **remédios** contra fungos e íctio.
+- **Cruzamento de dois adultos**: escolhe um peixe, ativa Cruzar e clica no segundo. Filhote nasce após **4 ciclos** (24 segundos com o jogo rodando).
+- **DNA herdável**: dois alelos por gene; o filhote manifesta uma combinação intermediária de **corpo, cauda, cor e estampa**, e mantém os alelos herdados para futuros cruzamentos.
+- **Dinheiro**: venda peixes adultos e compre ração, medicamentos, ovos e melhorias.
+- **Aquário 2**: desbloqueável na loja, com capacidade para 14 peixes (14 no primeiro também).
+- **Pesquisa de cuidado**: três níveis de melhora na recuperação.
+- **Doenças, fome, envelhecimento e morte**; necropsia indica uma **causa provável**, não um diagnóstico definitivo.
+- **Coleção de 441 combinações** em matriz visual C×F, com destaque para descobertas.
+- **Sete combinações raras** com valor maior.
+- **Salvamento automático**, save manual, backup e arquivo da partida antiga ao iniciar uma nova.
+- **Ateliê** do peixe Azul-Rubi com peças PNG independentes, nadadeiras animadas e marcas de articulação.
 
-### Mostrar as partes no jogo
+### Controles
 
-1. Instale o LÖVE 11.x e execute `love .` na raiz.
-2. Selecione o primeiro peixe, o **Azul-Rubi**.
-3. Pressione **3** para abrir o *Ateliê* e ver o peixe montado e suas partes separadas.
-4. Pressione **J** para ver os pontos de articulação.
-5. Use **C** ou **X** no laboratório para alterar genes de cor/estampa e observar a mudança do peixe.
+| Tecla | Ação |
+|---|---|
+| Mouse | Selecionar peixes e botões |
+| 1 / 2 | Aquário principal / viveiro |
+| 3 / 4 | Loja / Laboratório de DNA |
+| 5 / 6 | Coleção 21×21 / Ateliê |
+| F | Alimentar peixe selecionado |
+| H | Tratar peixe doente |
+| B | Iniciar cruzamento; depois clicar em outro peixe adulto |
+| F8 / F9 | Exame de DNA / necropsia |
+| P ou Espaço | Pausar a simulação |
+| J | Ver juntas da animação modular |
+| S | Salvar |
+| Escape | Fechar janela, cancelar seleção de parceiro ou voltar ao menu |
 
-### Outros comandos
+A loja, o laboratório e todas as telas têm botões para utilizar a interface sem teclado.
 
-- **1** aquário, **2** galeria, **3** ateliê;
-- Setas: corpo e cauda; **C**: paleta; **X**: estampa;
-- **N**: cruzar peixe selecionado com o seguinte; **F**: alimentar; **H**: tratar;
-- **F8**: ficha genética; **F9**: necropsia da última morte;
-- **Espaço**: pausar; **R**: reiniciar; **F12**: captura de tela.
+## Arquitetura
 
-## Projeto e testes
+- **main.lua** — telas e interações do cliente.
+- **game/play.lua** — simulação, economia, reprodução, morte e progressão sem dependência de LÖVE; testes determinísticos.
+- **game/storage.lua + game/json.lua** — gravação JSON com validação, backup e arquivamento da partida anterior.
+- **genetics/dna.lua + genetics/health.lua** — expressão genética e fisiologia.
+- **art/fish.lua** — 21 silhuetas procedurais × 21 barbatanas, cor e padrão.
+- **art/rigged_fish.lua + assets/fish/azul_rubi/** — arte do Azul-Rubi em 12 camadas RGBA, animada pelo motor.
+- **fish-tycoon-reference/** — cópia separada para estudo, não utilizada nem incluída no pacote .love distribuído.
 
-- `art/rigged_fish.lua`: composição das camadas em LÖVE e hierarquia de pivôs.
-- `scripts/generate_azul_rubi.py`: fonte que **gera as artes originais SVG e PNG**, GIF e `rig.json`.
-- `assets/fish/azul_rubi/`: camadas individuais, transparência e amostras.
-- `art/fish.lua`: renderização procedural das outras combinações de corpo e cauda.
-- `genetics/`: herança, doenças, predisposições e relatórios.
-- `tests/rigged_fish.lua`: valida modelos, genes e nado.
-- `docs/ANIMACAO_MODULAR.md`: especificação de posições, formatos e extensão.
+## Desenvolvimento e testes
 
-Rodar testes de lógica: `lua tests/rigged_fish.lua && lua tests/genetics.lua`. A rotina GitHub Actions também confere PNGs RGBA e executa um smoke test gráfico via LÖVE em ambiente virtualizado.
+A integração roda no GitHub Actions, incluindo testes puros em Lua, validação dos PNGs transparentes e renderização real em LÖVE sob X virtual.
 
-Para regenerar as ilustrações, use `python -m pip install cairosvg pillow` e `python scripts/generate_azul_rubi.py`. São dependências apenas do **exportador de artes**; não do jogo.
+Com Lua 5.4: lua tests/game_play.lua && lua tests/genetics.lua.
+Com LÖVE 11.x: love .
 
-## Estado do projeto
-
-O `Fish-Tycoon-Lua` **não foi modificado**. Sua reconstrução 1:1 está preservada em `fish-tycoon-reference/`, separada do novo cliente visual de `agua-Life`. Ainda não foi concluída a união integral de toda a jogabilidade da reconstrução com a interface nova.
-
-Os desenhos Azul-Rubi são originais, não são uma edição dos sprites comerciais de Fish Tycoon.
+**Status:** base jogável funcional, não um clone 1:1 completo do Fish Tycoon. Os 441 peixes do catálogo são atualmente desenhados por uma combinação procedural de corpos e caudas, e apenas o **Azul-Rubi** tem sprite HD modular próprio. Ainda faltam melhorias de animação dos demais corpos, som, múltiplos cenários e maior profundidade nas pesquisas.
