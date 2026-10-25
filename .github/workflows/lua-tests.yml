@@ -85,3 +85,17 @@ jobs:
           path: agua-Life-playable.love
           if-no-files-found: error
           retention-days: 30
+      - name: Build Windows test bundle
+        run: |
+          mkdir -p dist/agua-Life
+          cp agua-Life-playable.love INICIAR_WINDOWS.bat dist/agua-Life/
+          cp README.md dist/agua-Life/LEIA-ME.md
+          cd dist
+          zip -qr ../agua-Life-Windows-matriz.zip agua-Life
+      - name: Publish Windows game ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: agua-Life-Windows-matriz
+          path: agua-Life-Windows-matriz.zip
+          if-no-files-found: error
+          retention-days: 30
