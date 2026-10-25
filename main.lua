@@ -1,6 +1,7 @@
 -- agua-Life: aquario/vitrine da arte procedural original
 local C=require('art.catalog')
 local Art=require('art.fish')
+local Rig=require('art.rigged_fish')
 local DNA=require('genetics.dna')
 local Health=require('genetics.health')
 local g=love.graphics
@@ -12,6 +13,7 @@ local buttons={}
 local bubbles={}
 local deathReports,examPanel={},false
 local cycles=0
+local showRigJoints=false
 local function rng(id,salt)return ((id*73+salt*211)%997)/997 end
 local function rgb(r,gg,b,a)g.setColor(r/255,gg/255,b/255,a or 1)end
 local function text(s,x,y,f,r,gg,b)
@@ -19,6 +21,12 @@ local function text(s,x,y,f,r,gg,b)
 end
 local function rect(x,y,w,h,rad,r,gg,b,a)
  rgb(r,gg,b,a);g.rectangle('fill',x,y,w,h,rad,rad)
+end
+-- A arte modular desenha o Azul-Rubi. Os outros peixes conservam
+-- o renderizador 21x21; DNA de cor e padrao troca as camadas do Azul-Rubi.
+local function drawFish(spec,x,y,scale,dir,t,health)
+ if Rig.draw(spec,x,y,(scale or 1)*.65,dir,t,health,showRigJoints) then return end
+ Art.draw(spec,x,y,scale,dir,(t or 0)*4)
 end
 local function viewport()
  local ww,hh=g.getDimensions();local sc=math.min(ww/W,hh/H)
@@ -43,11 +51,11 @@ local function reset()
  school={}
  for i=1,17 do
   school[i]={
-   spec=C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1),
+   spec=i==1 and C.get(1,1,3,1) or C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1),
    x=120+rng(i,1)*580,y=222+rng(i,2)*379,
    scale=.59+rng(i,3)*.35,face=(i%2==0) and -1 or 1,
    speed=15+rng(i,4)*23,phase=i*.73,
-   id=i,genome=DNA.founder(C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1)),
+   id=i,genome=DNA.founder(i==1 and C.get(1,1,3,1) or C.get(i,1+(i*5)%21,1+(i*3)%12,(i%6)+1)),
    health=Health.new()}
  end
  selected=1;deathReports={};examPanel=false;cycles=0
@@ -112,12 +120,13 @@ local function header()
  rect(0,0,W,108,0,7,28,42)
  text('agua-Life',40,22,logo,230,249,241)
  text('ATELIE DE PEIXES PROCEDURAIS',43,73,small,112,190,190)
- btn('1   Aquario',465,36,155,35,function()screen='aquarium'end,screen=='aquarium')
- btn('2   Galeria',630,36,155,35,function()screen='gallery'end,screen=='gallery')
- btn('DNA',795,36,70,35,function()examPanel=examPanel=='dna' and false or 'dna'end,examPanel=='dna')
- btn('Mortes',873,36,75,35,function()examPanel=examPanel=='death' and false or 'death'end,examPanel=='death')
- rect(915,41,234,29,15,20,64,82)
- text('100% LUA + LOVE2D',953,48,small,176,231,232)
+ btn('1 Aquario',408,36,132,35,function()screen='aquarium'end,screen=='aquarium')
+ btn('2 Galeria',548,36,113,35,function()screen='gallery'end,screen=='gallery')
+ btn('3 Atelie',669,36,113,35,function()screen='atelier'end,screen=='atelier')
+ btn('DNA',790,36,70,35,function()examPanel=examPanel=='dna' and false or 'dna'end,examPanel=='dna')
+ btn('Mortes',868,36,90,35,function()examPanel=examPanel=='death' and false or 'death'end,examPanel=='death')
+ rect(969,41,180,29,15,20,64,82)
+ text('LUA + LOVE2D',1000,48,small,176,231,232)
 end
 local function side()
  rect(853,130,287,565,17,13,42,59)
@@ -129,7 +138,7 @@ local function side()
  text('Laboratorio',878,152,heading)
  text('Configure seu peixe original',878,185,small,136,187,193)
  rect(872,211,246,143,15,22,72,92)
- Art.draw(f,998,285,1.10,1,clock*2.3)
+ drawFish(f,998,285,1.10,1,clock,a.health)
  local function row(label,value,y,key)
   text(label,878,y,small,145,198,204)
   text(value,878,y+18,font)
@@ -150,7 +159,7 @@ local function aquarium()
   if i==selected then
    rgb(227,210,141,.2);g.ellipse('line',a.x,a.y,64*a.scale,45*a.scale)
   end
-  Art.draw(a.spec,a.x,a.y,a.scale,a.face,clock*4+a.phase)
+  drawFish(a.spec,a.x,a.y,a.scale,a.face,clock+a.phase,a.health)
  end
  text('AQUARIO CRIATIVO',65,151,small,187,219,217)
  text('Clique no peixe para personalizar',65,174,small,152,196,198)
@@ -165,9 +174,32 @@ local function gallery()
   local x=63+col*254;local y=224+row*64
   local active=i==current.body
   rect(x,y,239,56,8,active and 39 or 22,active and 98 or 75,active and 112 or 90)
-  Art.draw(C.get(i,current.fin,current.palette,(i%6)+1),x+75,y+28,.56,1,clock*4+i)
+  drawFish(C.get(i,current.fin,current.palette,(i%6)+1),x+75,y+28,.56,1,clock+i)
   text(C.bodies[i].name,x+129,y+18,small)
   buttons[#buttons+1]={x=x,y=y,w=239,h=56,fn=function()choice('body',i-current.body);screen='aquarium'end}
+ end
+end
+-- Atelie: o proprio sprite de jogo e exibido e as pecas originais sao
+-- listadas independentemente. Sem mockup e sem sprites duplicados.
+local function atelier()
+ rect(39,130,794,565,15,10,52,73)
+ text('Azul-Rubi | Peixe em camadas',62,149,heading)
+ text('Articulacoes reais: cauda, dorsal, ventral, peitoral e olho',62,182,small,142,209,217)
+ text('J: mostrar as articulacoes de movimento',62,204,small,142,209,217)
+ rect(63,233,747,273,14,15,64,83)
+ local exemplar=school[selected]
+ local spec=Rig.supports(exemplar and exemplar.spec) and exemplar.spec or C.get(1,1,3,1)
+ if not Rig.draw(spec,415,368,1.42,1,clock,
+     Rig.supports(exemplar and exemplar.spec) and exemplar.health or nil,showRigJoints) then
+  text('Sprites PNG ainda nao encontrados; confira assets/fish/azul_rubi/',78,355,small)
+ end
+ local cards={{'CORPO','body'},{'CAUDA','tail'},{'DORSAL','dorsal'},
+  {'VENTRAL','pelvic'},{'PEITORAL','pectoral'},{'OLHO','eye'}}
+ for i,item in ipairs(cards) do
+  local x=51+(i-1)*129
+  rect(x,529,119,141,10,19,71,91)
+  Rig.drawPart(item[2],x+5,545,109,95)
+  text(item[1],x+10,647,small,229,241,242)
  end
 end
 function love.update(dt)
@@ -199,7 +231,9 @@ function love.draw()
  g.push('all');g.translate(ox,oy);g.scale(sc,sc)
  buttons={}
  header()
- if screen=='aquarium' then aquarium() else gallery() end
+ if screen=='aquarium' then aquarium()
+ elseif screen=='gallery' then gallery()
+ else atelier() end
  side()
  if examPanel then
   local lines
@@ -213,7 +247,7 @@ function love.draw()
   btn('FECHAR',639,569,105,33,function()examPanel=false end)
  end
  rect(0,707,W,53,0,8,29,42)
- text('ESPACO = pausa  |  SETAS = corpo/cauda  |  C = cores  |  X = ornamento  |  R = reiniciar',40,726,small,175,215,212)
+ text('1 Aquario  2 Galeria  3 Atelie  |  J articulacoes  |  N cruzar  |  F alimentar  H tratar  |  R reiniciar',40,726,small,175,215,212)
  text(paused and 'PAUSADO' or ('Peixes: '..#school),1049,726,small)
  g.pop()
 end
@@ -237,6 +271,8 @@ function love.keypressed(k)
  if k=='space' then paused=not paused
  elseif k=='1' then screen='aquarium'
  elseif k=='2' then screen='gallery'
+ elseif k=='3' then screen='atelier'
+ elseif k=='j' then showRigJoints=not showRigJoints
  elseif k=='right' then choice('body',1)
  elseif k=='left' then choice('body',-1)
  elseif k=='up' then choice('fin',1)
