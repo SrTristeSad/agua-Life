@@ -530,6 +530,17 @@ function love.update(dt)
  if autosave>=12 then autosave=0;save() end
 end
 function love.draw()
+ -- Testa o atlas inteiro e as peças cortadas com a GPU real, sem ficar
+ -- parado no menu de título durante os testes automatizados.
+ if os.getenv('AGUA_MATRIX_SMOKE')=='1' then
+  assert(Matrix.available(),'O atlas de 441 peixes não foi encontrado')
+  assert(Matrix.draw(C.get(1,1,3,1),300,300,2,1,clock))
+  assert(Matrix.draw(C.get(21,17,3,1),580,300,2,1,clock))
+  assert(Matrix.drawPart(C.get(1,1,3,1),'tail',730,320,180,120))
+  print('OK graphics: 441 matrix + 7 magic fish + tail animation')
+  love.event.quit(0)
+  return
+ end
  -- Ambos exercitam a renderização nativa, não apenas o parser Lua.
  if os.getenv('AGUA_RIG_SMOKE')=='1' then
   assert(Rig.assetsReady(C.get(1,1,3,1)))
