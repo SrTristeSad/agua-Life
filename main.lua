@@ -10,7 +10,7 @@ local school,selected={},1
 local font,small,heading,logo
 local buttons={}
 local bubbles={}
-local deathReports={},examPanel=false
+local deathReports,examPanel={},false
 local cycles=0
 local function rng(id,salt)return ((id*73+salt*211)%997)/997 end
 local function rgb(r,gg,b,a)g.setColor(r/255,gg/255,b/255,a or 1)end
@@ -31,6 +31,7 @@ local function btn(title,x,y,w,h,fn,active)
  buttons[#buttons+1]={x=x,y=y,w=w,h=h,fn=fn}
 end
 local function choice(kind,step)
+ if not school[selected] then return end
  local f=school[selected].spec
  if kind=='body' then f.body=C.wrap(f.body+step,#C.bodies)
  elseif kind=='fin' then f.fin=C.wrap(f.fin+step,#C.fins)
@@ -120,7 +121,11 @@ local function header()
 end
 local function side()
  rect(853,130,287,565,17,13,42,59)
- local a=school[selected];local f=a.spec
+ local a=school[selected];if not a then
+  text('Aquario vazio. Pressione R para reiniciar.',878,160,small)
+  return
+ end
+ local f=a.spec
  text('Laboratorio',878,152,heading)
  text('Configure seu peixe original',878,185,small,136,187,193)
  rect(872,211,246,143,15,22,72,92)
@@ -154,7 +159,7 @@ local function gallery()
  rect(39,130,794,565,15,10,52,73)
  text('21 corpos originais',63,151,heading)
  text('Cada desenho aceita qualquer cauda e paleta.',64,189,small,147,197,202)
- local current=school[selected].spec
+ local current=school[selected] and school[selected].spec or C.get(1,1,1,1)
  for i=1,21 do
   local col=(i-1)%3;local row=math.floor((i-1)/3)
   local x=63+col*254;local y=224+row*64
