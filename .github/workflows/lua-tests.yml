@@ -18,6 +18,7 @@ jobs:
           lua5.4 tests/genetics.lua
           lua5.4 tests/rigged_fish.lua
           lua5.4 tests/game_play.lua
+          lua5.4 tests/matrix.lua
       - name: Validate generated transparent sprites and joint metadata
         run: |
           python - <<'PY'
@@ -37,9 +38,32 @@ jobs:
           assert (root/'swim.gif').is_file()
           print('OK 12 camadas RGBA + prancheta + GIF')
           PY
+      - name: Validate user fish atlas dimensions and transparency
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct,json
+          root=Path('assets/fish/matrix')
+          pic=root/'atlas_441.png'
+          d=pic.read_bytes()
+          assert d[:8]==b'\\x89PNG\\r\\n\\x1a\\n'
+          assert struct.unpack('>II',d[16:24])==(2688,1480)
+          assert d[25] in (4,6)
+          meta=json.loads((root/'atlas_441.json').read_text(encoding='utf-8'))
+          assert meta['grid']==[21,21] and meta['cell']==[128,64]
+          assert len(meta['bounds'])==21
+          assert all(len(row)==21 for row in meta['bounds'])
+          assert len(meta['magic_pairs'])==7
+          print('OK 441 tiles RGBA, 7 magic fish and JSON metadata')
+          PY
       - name: Native GPU render smoke
         env:
           AGUA_RIG_SMOKE: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
+      - name: Native matrix-animation smoke
+        env:
+          AGUA_MATRIX_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Native playable menu and aquarium smoke
@@ -53,7 +77,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Build standalone LOVE game (without study-only original assets)
-        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi
+        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json
       - name: Publish playable LOVE file
         uses: actions/upload-artifact@v4
         with:
