@@ -1,0 +1,33 @@
+name: Exportar peixe modular Azul-Rubi
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/generate_azul_rubi.py'
+      - '.github/workflows/generate-fish-art.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preparar renderizador offline
+        run: python -m pip install --disable-pip-version-check pillow cairosvg
+      - name: Gerar camadas transparentes, SVG, GIF e metadados
+        run: python scripts/generate_azul_rubi.py
+      - name: Publicar arquivos gerados
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/fish/azul_rubi/
+          if ! git diff --cached --quiet; then
+            git commit -m 'assets: publicar sprites modulares PNG, SVG e gif Azul-Rubi'
+            git push origin HEAD:main
+          fi
