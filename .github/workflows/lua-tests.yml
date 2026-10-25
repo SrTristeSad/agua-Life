@@ -19,6 +19,7 @@ jobs:
           lua5.4 tests/rigged_fish.lua
           lua5.4 tests/game_play.lua
           lua5.4 tests/matrix.lua
+          lua5.4 tests/dna_visual.lua
       - name: Validate generated transparent sprites and joint metadata
         run: |
           python - <<'PY'
