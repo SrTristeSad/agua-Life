@@ -599,6 +599,8 @@ function love.draw()
  -- parado no menu de título durante os testes automatizados.
  if os.getenv('AGUA_MATRIX_SMOKE')=='1' then
   assert(Matrix.available(),'O atlas de 441 peixes não foi encontrado')
+  assert(require('art.dna_visual').getShader(C.get(1,1,6,2),0,0,128,64),
+   'O shader DNA de cor/estampa precisa compilar e executar no LÖVE')
   assert(Matrix.draw(C.get(1,1,3,1),300,300,2,1,clock))
   assert(Matrix.draw(C.get(21,17,3,1),580,300,2,1,clock))
   assert(Matrix.drawPart(C.get(1,1,3,1),'tail',730,320,180,120))
