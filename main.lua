@@ -632,6 +632,16 @@ function love.update(dt)
  if autosave>=12 then autosave=0;save() end
 end
 function love.draw()
+ if os.getenv('AGUA_EXPORT_SMOKE')=='1' then
+  world=world or Play.new(42)
+  screen='collection'
+  collectionFocus.body=8;collectionFocus.fin=21
+  local filename=exportSelectedFish()
+  assert(filename and love.filesystem.getInfo(filename,'file'),'PNG para inspeção não foi criado')
+  print('OK export PNG: '..filename)
+  love.event.quit(0)
+  return
+ end
  if os.getenv('AGUA_QUALITY_SMOKE')=='1' then
   -- Compara o MESMO peixe com e sem nitidez usando a GPU.
   local specimen=C.get(8,21,6,3)
