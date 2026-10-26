@@ -270,7 +270,10 @@ local function sidebar()
   addButton('Proximo F',1003,590,130,37,function()
    collectionFocus.fin=C.wrap(collectionFocus.fin+1,21)
   end)
-  text('Clique em qualquer peixe da matriz.',864,665,fontTiny,171,216,220)
+  addButton(Matrix.isSharp() and 'NITIDEZ: MAIOR [V]' or 'NITIDEZ: SUAVE [V]',868,635,265,30,function()
+   Matrix.setSharpness(not Matrix.isSharp())
+  end,Matrix.isSharp())
+  text('Clique em qualquer peixe da matriz.',864,675,fontTiny,171,216,220)
   return
  end
  local f=findSelection()
@@ -596,6 +599,39 @@ function love.update(dt)
  if autosave>=12 then autosave=0;save() end
 end
 function love.draw()
+ if os.getenv('AGUA_QUALITY_SMOKE')=='1' then
+  -- Compara o MESMO peixe com e sem nitidez usando a GPU.
+  local specimen=C.get(8,21,6,3)
+  local function sample(sharp)
+   Matrix.setSharpness(sharp)
+   local cv=g.newCanvas(520,260)
+   g.setCanvas(cv);g.clear(0,0,0,0)
+   assert(Matrix.draw(specimen,260,130,2.1,1,1.3))
+   g.setCanvas()
+   local data=cv:newImageData()
+   cv:release()
+   return data
+  end
+  local before=sample(false)
+  local after=sample(true)
+  local count,delta=0,0
+  for y=75,190,3 do
+   for x=115,395,3 do
+    local r1,g1,b1,a1=before:getPixel(x,y)
+    local r2,g2,b2,a2=after:getPixel(x,y)
+    assert(math.abs(a1-a2)<.01,'Nitidez nao deve alterar bordas/alfa')
+    if a1>.95 then
+     count=count+1
+     delta=delta+math.abs(r1-r2)+math.abs(g1-g2)+math.abs(b1-b2)
+    end
+   end
+  end
+  assert(count>20 and delta>.3,'Ajuste de nitidez nao alterou detalhes interiores')
+  Matrix.setSharpness(false)
+  print('OK: nitidez reversivel; '..count..' pixels validos; silhueta intacta')
+  love.event.quit(0)
+  return
+ end
  if os.getenv('AGUA_CLEAN_SMOKE')=='1' then
   assert(Matrix.available() and Matrix.isClean(),'Atlas reextraido nao carregou')
   assert(Matrix.draw(C.get(8,21,6,3),350,260,1.5,1,clock))
@@ -718,6 +754,9 @@ function love.keypressed(k)
  elseif k=='f9' then modal='death'
  elseif k=='p' or k=='space' then paused=not paused
  elseif k=='j' then joints=not joints
+ elseif k=='v' then
+  Matrix.setSharpness(not Matrix.isSharp())
+  announce(Matrix.isSharp() and 'Visualização mais nítida ativada.' or 'Visualização suave ativada.')
  elseif k=='f' and activeFish() then
   local ok,msg=world:feed(selectedId);action(ok,msg)
  elseif k=='h' and activeFish() then
