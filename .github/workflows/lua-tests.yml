@@ -166,12 +166,10 @@ jobs:
           mkdir -p dist/agua-Life
           cp agua-Life-playable.love INICIAR_WINDOWS.bat dist/agua-Life/
           cp README.md dist/agua-Life/LEIA-ME.md
-          cd dist
-          zip -qr ../agua-Life-Windows-matriz.zip agua-Life
       - name: Publish Windows game ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: agua-Life-Windows-Recorte-Corrigido
-          path: agua-Life-Windows-matriz.zip
+          name: agua-Life-Windows-Inspecao-Visual
+          path: dist/agua-Life/
           if-no-files-found: error
           retention-days: 30
