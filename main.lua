@@ -117,6 +117,39 @@ local function drawFish(spec,x,y,scale,face,t,health,showJoints)
  if Rig.supports(spec) and Rig.draw(spec,x,y,k*.60,face,t,health,showJoints) then return end
  Art.draw(spec,x,y,k,face,t*3.1)
 end
+-- Exporta EXATAMENTE os pixels desenhados pelo LÖVE para corrigir uma
+-- combinação específica sem reconstruir as demais 440 células.
+local function exportSelectedFish()
+ local spec,tag
+ if screen=='collection' then
+  local c,f=collectionFocus.body,collectionFocus.fin
+  spec=C.get(c,f,(c-1)%12+1,(c-1)%6+1)
+  tag=string.format('C%02d_F%02d',c,f)
+ else
+  local fish=activeFish()
+  if not fish then return announce('Selecione um peixe ou abra a Coleção [5].') end
+  spec=fish.spec
+  tag=string.format('PEIXE_%d_C%02d_F%02d',fish.id,spec.body,spec.fin)
+ end
+ local canvas=g.newCanvas(512,256)
+ g.push('all')
+ g.setCanvas(canvas)
+ g.clear(0,0,0,0)
+ local ok,drawn=pcall(Matrix.draw,spec,256,128,3.2,1,0,nil,false)
+ g.setCanvas()
+ g.pop()
+ if not ok or not drawn then
+  canvas:release()
+  return announce('Falha ao exportar o sprite selecionado.')
+ end
+ local image=canvas:newImageData()
+ canvas:release()
+ local name=tag..'_'..os.time()..'.png'
+ local success,err=pcall(function()image:encode('png',name)end)
+ if not success then return announce('Erro no PNG: '..tostring(err)) end
+ announce('PNG salvo: '..love.filesystem.getSaveDirectory()..'/'..name)
+ return name
+end
 local function bar(x,y,w,value,r,gg,b)
  rect(x,y,w,10,22,58,74,5)
  rect(x+1,y+1,math.max(0,(w-2)*math.max(0,math.min(100,value))/100),8,r,gg,b,4)
@@ -273,7 +306,7 @@ local function sidebar()
   addButton(Matrix.isSharp() and 'NITIDEZ: MAIOR [V]' or 'NITIDEZ: SUAVE [V]',868,635,265,30,function()
    Matrix.setSharpness(not Matrix.isSharp())
   end,Matrix.isSharp())
-  text('Clique em qualquer peixe da matriz.',864,675,fontTiny,171,216,220)
+  text('F10: exportar o peixe selecionado em PNG',864,675,fontTiny,171,216,220)
   return
  end
  local f=findSelection()
@@ -752,6 +785,7 @@ function love.keypressed(k)
  elseif k=='6' then screen='atelier'
  elseif k=='f8' then modal='dna'
  elseif k=='f9' then modal='death'
+ elseif k=='f10' then exportSelectedFish()
  elseif k=='p' or k=='space' then paused=not paused
  elseif k=='j' then joints=not joints
  elseif k=='v' then
