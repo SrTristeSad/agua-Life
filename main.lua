@@ -404,6 +404,7 @@ end
 local function collection()
  rect(27,135,801,564,12,24,65,86)
  text('CATALOGO GENETICO  -  21 CORPOS x 21 CAUDAS',46,148,titleFont,219,243,242)
+ text(Matrix.isClean() and 'ARTE ORIGINAL • RECORTES CORRIGIDOS' or 'ARTE ORIGINAL',46,180,fontTiny,155,221,218)
  local count=0;for _,seen in pairs(world.s.discovered) do if seen then count=count+1 end end
  text('Descobertos: '..count..'/441',585,155,small,254,222,159)
  local x0=76;local y0=204;local dx=35.0;local dy=21.1
@@ -595,6 +596,15 @@ function love.update(dt)
  if autosave>=12 then autosave=0;save() end
 end
 function love.draw()
+ if os.getenv('AGUA_CLEAN_SMOKE')=='1' then
+  assert(Matrix.available() and Matrix.isClean(),'Atlas reextraido nao carregou')
+  assert(Matrix.draw(C.get(8,21,6,3),350,260,1.5,1,clock))
+  assert(Matrix.draw(C.get(12,15,4,3),650,260,1.5,1,clock))
+  assert(Matrix.drawStatic(C.get(4,12,2,2),350,490,.65,1,clock))
+  print('OK graphics: matriz original reextraida, F12 F15 F21 isolados')
+  love.event.quit(0)
+  return
+ end
  -- Testa o atlas inteiro e as peças cortadas com a GPU real, sem ficar
  -- parado no menu de título durante os testes automatizados.
  if os.getenv('AGUA_MATRIX_SMOKE')=='1' then

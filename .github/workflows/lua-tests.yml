@@ -67,7 +67,7 @@ jobs:
           refined=Image.open('assets/fish/matrix/atlas_original_refined_4k.png')
           assert original.size==(2688,1480)
           assert refined.size==(4032,2220) and refined.mode=='RGBA'
-          info=json.loads(Path('assets/fish/matrix/atlas_original_refined_4k.json').read_text())
+          info=json.loads(Path('assets/fish/matrix/atlas_original_refined_4k.json assets/fish/matrix/atlas_original_clean_4k.png assets/fish/matrix/atlas_original_clean_4k.json').read_text())
           assert info['grid']==[21,21] and info['cell']==[192,96]
           assert len(info['bounds'])==21 and all(len(row)==21 for row in info['bounds'])
           assert len(info['magic_bounds'])==7 and info['no_redraw'] is True
@@ -76,9 +76,34 @@ jobs:
           assert 'art.matrix' in source
           print('OK: matriz original recuperada; sem desenhos vetoriais rejeitados')
           PY
+      - name: Verify clean fish matrix integrity
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import json
+          root=Path('assets/fish/matrix')
+          meta=json.loads((root/'atlas_original_clean_4k.json').read_text(encoding='utf-8'))
+          audit=json.loads((root/'atlas_original_clean_4k.audit.json').read_text(encoding='utf-8'))
+          assert meta['no_redraw'] is True and len(audit)==441
+          assert meta['grid']==[21,21] and meta['cell']==[192,96]
+          assert min(item['pixels'] for item in audit)>100
+          with Image.open(root/'atlas_original_clean_4k.png') as atlas:
+            assert atlas.size==(4032,2220) and atlas.mode=='RGBA'
+            for row in range(21):
+              for fin in range(21):
+                b=atlas.crop((fin*192,row*96,(fin+1)*192,(row+1)*96)).getbbox()
+                assert b and b[0]>=12 and b[1]>=7 and b[2]<=180 and b[3]<=89,(row,fin,b)
+          print('OK 441 separate normalized fish, 7 magic fish')
+          PY
       - name: Native GPU render smoke
         env:
           AGUA_RIG_SMOKE: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
+      - name: Native clean original matrix smoke
+        env:
+          AGUA_CLEAN_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Native matrix-animation smoke
@@ -115,7 +140,7 @@ jobs:
       - name: Publish Windows game ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: agua-Life-Windows-Matriz-Original
+          name: agua-Life-Windows-Recorte-Corrigido
           path: agua-Life-Windows-matriz.zip
           if-no-files-found: error
           retention-days: 30

@@ -10,7 +10,7 @@ O jogo mantém o atlas transparente original em `assets/fish/matrix/atlas_441.pn
 
 ## Como jogar
 
-Instale [LÖVE 11.x](https://love2d.org). Baixe o artefato **agua-Life-Windows-Matriz-Original** da última execução aprovada em [GitHub Actions](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), extraia-o e abra `INICIAR_WINDOWS.bat`.
+Instale [LÖVE 11.x](https://love2d.org). Baixe o artefato **agua-Life-Windows-Recorte-Corrigido** da última execução aprovada em [GitHub Actions](https://github.com/SrTristeSad/agua-Life/actions/workflows/lua-tests.yml), extraia-o e abra `INICIAR_WINDOWS.bat`.
 
 - **1/2:** aquários; **3:** loja; **4:** DNA; **5:** coleção; **6:** ateliê.
 - **F/H:** alimentar/tratar; **B:** cruzar; **F8/F9:** DNA/necropsia.
@@ -21,3 +21,9 @@ A estrutura de código fica em `game/`, `genetics/`, `art/matrix.lua` e `main.lu
 ## Regenerar atlas fiel
 
 Use `python scripts/refine_original_matrix.py` com Pillow instalado. O gerador usa apenas os pixels já existentes da arte aprovada. Os desenhos vetoriais rejeitados ficam arquivados e não entram no jogo.
+
+## Recortes corrigidos
+
+O erro era uma extração por janela maior do que cada célula, especialmente nas colunas F12/F15/F21. Reextraímos diretamente os 441 peixes da imagem aprovada usando limites entre centros de células, seleção do corpo principal e remoção de ilhas desconexas. O novo `atlas_original_clean_4k.png` substitui o antigo na interface quando disponível. O desenho, a genética e os saves continuam os mesmos.
+
+**Limitação:** a arte original contém sobreposições reais entre barbatanas em algumas linhas. O novo algoritmo remove fragmentos extras, mas não recria pixels que já estavam ocultos na imagem de origem.
