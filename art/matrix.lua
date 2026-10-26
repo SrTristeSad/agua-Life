@@ -5,11 +5,15 @@ local M={}
 local lg=love.graphics
 local JSON=require('game.json')
 local DNAVisual=require('art.dna_visual')
-local ATLAS='assets/fish/matrix/atlas_441.png'
-local META='assets/fish/matrix/atlas_441.json'
+local ORIGINAL='assets/fish/matrix/atlas_441.png'
+local ORIGINAL_META='assets/fish/matrix/atlas_441.json'
+local REFINED='assets/fish/matrix/atlas_original_refined_4k.png'
+local REFINED_META='assets/fish/matrix/atlas_original_refined_4k.json'
+local ATLAS,META=ORIGINAL,ORIGINAL_META
 local CW,CH=128,64
 local MW,MH=384,136
 local AW,AH=2688,1480
+local refined=false
 local IMG=nil
 local attempted=false
 local metadata=nil
@@ -35,18 +39,40 @@ function M.available()
  if IMG then return true end
  if attempted then return false end
  attempted=true
- if not love.filesystem.getInfo(ATLAS,'file') then return false end
- local ok,ret=pcall(lg.newImage,ATLAS,{mipmaps=false})
- if not ok then return false end
- if ret:getWidth()~=AW or ret:getHeight()~=AH then ret:release();return false end
- ret:setFilter('linear','linear')
- IMG=ret
- if love.filesystem.getInfo(META,'file') then
-  local data=love.filesystem.read(META)
-  local success,parsed=pcall(JSON.decode,data)
-  if success and type(parsed)=='table' then metadata=parsed end
+ local choices={
+  {path=REFINED,meta=REFINED_META,aw=4032,ah=2220,cw=192,ch=96,mw=576,mh=204,refined=true},
+  {path=ORIGINAL,meta=ORIGINAL_META,aw=2688,ah=1480,cw=128,ch=64,mw=384,mh=136,refined=false}
+ }
+ for _,v in ipairs(choices) do
+  if love.filesystem.getInfo(v.path,'file') then
+   local ok,image=pcall(lg.newImage,v.path,{mipmaps=false})
+   if ok and image then
+    if image:getWidth()==v.aw and image:getHeight()==v.ah then
+     IMG=image;ATLAS,META=v.path,v.meta
+     AW,AH,CW,CH,MW,MH=v.aw,v.ah,v.cw,v.ch,v.mw,v.mh
+     refined=v.refined
+     M.source=ATLAS
+     image:setFilter('linear','linear')
+     if love.filesystem.getInfo(META,'file') then
+      local raw=love.filesystem.read(META)
+      local success,parsed=pcall(JSON.decode,raw)
+      if success and type(parsed)=='table' then metadata=parsed end
+     end
+     return true
+    end
+    if image.release then image:release() end
+   end
+  end
  end
- return true
+ return false
+end
+function M.isRefined()
+ M.available()
+ return refined
+end
+function M.resolution()
+ M.available()
+ return AW,AH,CW,CH
 end
 local function tile(indexValue,magicFlag)
  if magicFlag then return (indexValue-442)*MW,21*CH,MW,MH end
@@ -119,7 +145,7 @@ function M.drawStatic(spec,x,y,scale,direction,time)
  lg.push('all')
  lg.setColor(1,1,1,1)
  lg.translate(x,y)
- local s=(scale or 1)*(isMagic and .345 or 1)
+ local s=(scale or 1)*(isMagic and .345 or 1)*(isMagic and 384/MW or 128/CW)
  lg.scale((direction or 1)*s,s)
  lg.rotate(math.sin((time or 0)*2.8)*.012)
  lg.draw(IMG,parts.whole,-w*.5,-h*.5)
@@ -201,12 +227,12 @@ function M.draw(spec,x,y,scale,direction,time,health,joints)
   verts[i]={vx,vy,orig[3],orig[4]}
  end
  entry.mesh:setVertices(verts)
- local s=(scale or 1)*(isMagic and .345 or 1)
+ local s=(scale or 1)*(isMagic and .345 or 1)*(isMagic and 384/MW or 128/CW)
  lg.push('all')
  lg.setColor(1,1,1,1)
  -- O catálogo estático mantém os pixels canônicos; nos peixes vivos,
  -- alelos de paleta/estampa alteram apenas o fenótipo visual.
- local shader=DNAVisual.getShader(spec,entry.tx,entry.ty,entry.w,entry.h)
+ local shader=DNAVisual.getShader(spec,entry.tx,entry.ty,entry.w,entry.h,AW,AH)
  if shader then lg.setShader(shader) end
  lg.translate(x,y+pose.bob*s)
  lg.scale((direction or 1)*s,s)
