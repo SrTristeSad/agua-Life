@@ -122,7 +122,20 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Build standalone LOVE game (without study-only original assets)
-        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json assets/fish/matrix/atlas_original_refined_4k.png assets/fish/matrix/atlas_original_refined_4k.json
+        run: zip -qr agua-Life-playable.love main.lua conf.lua art/catalog.lua art/dna_visual.lua art/fish.lua art/matrix.lua art/rigged_fish.lua genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json assets/fish/matrix/atlas_original_clean_4k.png assets/fish/matrix/atlas_original_clean_4k.json
+      - name: Verify packaged game uses corrected atlas
+        run: |
+          python - <<'PY'
+          from zipfile import ZipFile
+          with ZipFile('agua-Life-playable.love') as package:
+            names=set(package.namelist())
+            assert 'assets/fish/matrix/atlas_original_clean_4k.png' in names
+            assert 'assets/fish/matrix/atlas_original_clean_4k.json' in names
+            assert 'art/hd_matrix.lua' not in names
+            assert not any(x.startswith('assets/fish/hd/') for x in names)
+            assert "local CLEAN='assets/fish/matrix/atlas_original_clean_4k.png'" in package.read('art/matrix.lua').decode()
+            print('OK: game contains CLEAN matrix; vector experiments excluded.')
+          PY
       - name: Publish playable LOVE file
         uses: actions/upload-artifact@v4
         with:
