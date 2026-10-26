@@ -67,7 +67,7 @@ jobs:
           refined=Image.open('assets/fish/matrix/atlas_original_refined_4k.png')
           assert original.size==(2688,1480)
           assert refined.size==(4032,2220) and refined.mode=='RGBA'
-          info=json.loads(Path('assets/fish/matrix/atlas_original_refined_4k.json assets/fish/matrix/atlas_original_clean_4k.png assets/fish/matrix/atlas_original_clean_4k.json').read_text())
+          info=json.loads(Path('assets/fish/matrix/atlas_original_refined_4k.json').read_text())
           assert info['grid']==[21,21] and info['cell']==[192,96]
           assert len(info['bounds'])==21 and all(len(row)==21 for row in info['bounds'])
           assert len(info['magic_bounds'])==7 and info['no_redraw'] is True
