@@ -106,6 +106,11 @@ jobs:
           AGUA_CLEAN_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
+      - name: Native PNG export of selected fish
+        env:
+          AGUA_EXPORT_SMOKE: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
       - name: Native graphics quality regression
         env:
           AGUA_QUALITY_SMOKE: '1'
