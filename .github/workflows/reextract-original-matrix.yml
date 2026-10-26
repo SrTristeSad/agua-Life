@@ -1,0 +1,55 @@
+name: Isolar matriz original sem recortes vizinhos
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/reextract_original_matrix.py'
+      - '.github/workflows/reextract-original-matrix.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install image extraction libraries
+        run: python -m pip install --disable-pip-version-check Pillow numpy opencv-python-headless
+      - name: Extract all 441 fish using safe cell boundaries
+        run: python scripts/reextract_original_matrix.py
+      - name: Assert transparent padded and complete grid
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import json
+          root=Path('assets/fish/matrix')
+          name='atlas_original_clean_4k'
+          meta=json.loads((root/(name+'.json')).read_text(encoding='utf-8'))
+          audit=json.loads((root/(name+'.audit.json')).read_text(encoding='utf-8'))
+          assert meta['no_redraw'] is True
+          assert len(meta['bounds'])==21 and all(len(row)==21 for row in meta['bounds'])
+          assert len(audit)==441 and min(x['pixels'] for x in audit)>100
+          with Image.open(root/(name+'.png')) as image:
+            assert image.size==(4032,2220) and image.mode=='RGBA'
+            for r in range(21):
+              for c in range(21):
+                box=image.crop((c*192,r*96,(c+1)*192,(r+1)*96)).getbbox()
+                assert box and box[0]>=12 and box[1]>=7 and box[2]<=180 and box[3]<=89,(r,c,box)
+          print('OK: no bleed or missing sprites across 441 independent cells')
+          PY
+      - name: Publish the corrected original matrix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/fish/matrix/atlas_original_clean_4k.png assets/fish/matrix/atlas_original_clean_4k.json assets/fish/matrix/atlas_original_clean_4k.audit.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'assets: substituir recortes contaminados pelo atlas original limpo'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
