@@ -286,6 +286,13 @@ end
 function M.visualParameters(spec)
  return DNAVisual.parameters(spec)
 end
+-- Qualidade de exibição: o arquivo RGBA permanece intocado.
+function M.setSharpness(value)
+ return DNAVisual.setSharpness(value)
+end
+function M.isSharp()
+ return DNAVisual.isSharp()
+end
 function M.clearCache()
  for _,entry in pairs(skeletal) do
   if entry.mesh then entry.mesh:release() end
