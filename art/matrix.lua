@@ -7,6 +7,8 @@ local JSON=require('game.json')
 local DNAVisual=require('art.dna_visual')
 local ORIGINAL='assets/fish/matrix/atlas_441.png'
 local ORIGINAL_META='assets/fish/matrix/atlas_441.json'
+local CLEAN='assets/fish/matrix/atlas_original_clean_4k.png'
+local CLEAN_META='assets/fish/matrix/atlas_original_clean_4k.json'
 local REFINED='assets/fish/matrix/atlas_original_refined_4k.png'
 local REFINED_META='assets/fish/matrix/atlas_original_refined_4k.json'
 local ATLAS,META=ORIGINAL,ORIGINAL_META
@@ -40,6 +42,9 @@ function M.available()
  if attempted then return false end
  attempted=true
  local choices={
+  -- Extração correta com célula exclusiva para cada corpo e cauda.
+  {path=CLEAN,meta=CLEAN_META,aw=4032,ah=2220,cw=192,ch=96,mw=576,mh=204,refined=true},
+  -- Compatibilidade para instalações antigas até o atlas limpo estar disponível.
   {path=REFINED,meta=REFINED_META,aw=4032,ah=2220,cw=192,ch=96,mw=576,mh=204,refined=true},
   {path=ORIGINAL,meta=ORIGINAL_META,aw=2688,ah=1480,cw=128,ch=64,mw=384,mh=136,refined=false}
  }
@@ -69,6 +74,10 @@ end
 function M.isRefined()
  M.available()
  return refined
+end
+function M.isClean()
+ M.available()
+ return IMG~=nil and ATLAS==CLEAN
 end
 function M.resolution()
  M.available()
