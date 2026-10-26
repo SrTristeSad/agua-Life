@@ -20,7 +20,6 @@ jobs:
           lua5.4 tests/game_play.lua
           lua5.4 tests/matrix.lua
           lua5.4 tests/dna_visual.lua
-          lua5.4 tests/hd_matrix.lua
       - name: Validate generated transparent sprites and joint metadata
         run: |
           python - <<'PY'
@@ -58,40 +57,9 @@ jobs:
           assert len(meta['magic_pairs'])==7
           print('OK 441 tiles RGBA, 7 magic fish and JSON metadata')
           PY
-      - name: Verify 448 separate HD images, 4K matrix, and transparent padding
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          from PIL import Image
-          import json
-          root=Path('assets/fish/hd')
-          manifest=json.loads((root/'manifest.json').read_text())
-          assert manifest['grid']==[21,21] and manifest['cell']==[512,256]
-          assert manifest['catalog']==[4096,2304]
-          assert manifest['atlas']==[4096,2304]
-          files=list((root/'sprites').glob('*.png'))
-          assert len(files)==448,len(files)
-          expected=[root/'sprites'/f'C{c:02d}_F{f:02d}.png'
-                    for c in range(1,22) for f in range(1,22)]
-          expected.extend(root/'sprites'/f'M{i}.png' for i in range(7))
-          for path in expected:
-            with Image.open(path) as im:
-              assert im.size==(512,256) and im.mode=='RGBA',str(path)
-              bbox=im.getchannel('A').getbbox()
-              assert bbox and bbox[0]>=13 and bbox[1]>=13 and bbox[2]<=499 and bbox[3]<=243,(path,bbox)
-          for name in ('atlas_4k_rgba.png','catalog_4k.png'):
-            with Image.open(root/name) as im:
-              assert im.size==(4096,2304)
-          print('OK: 441 + 7 peixes, sem invadir caixas, 512x256 cada, atlas 4K')
-          PY
       - name: Native GPU render smoke
         env:
           AGUA_RIG_SMOKE: '1'
-          LIBGL_ALWAYS_SOFTWARE: '1'
-        run: timeout 50s xvfb-run -a love .
-      - name: Native 4K fish game rendering smoke
-        env:
-          AGUA_HD_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Native matrix-animation smoke
@@ -110,7 +78,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Build standalone LOVE game (without study-only original assets)
-        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json assets/fish/hd/manifest.json assets/fish/hd/atlas_4k_rgba.png assets/fish/hd/catalog_4k.png assets/fish/hd/sprites
+        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json
       - name: Publish playable LOVE file
         uses: actions/upload-artifact@v4
         with:
@@ -128,7 +96,7 @@ jobs:
       - name: Publish Windows game ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: agua-Life-Windows-HD-4K
+          name: agua-Life-Windows-original
           path: agua-Life-Windows-matriz.zip
           if-no-files-found: error
           retention-days: 30
