@@ -4,6 +4,14 @@
 local DNAVisual={}
 local shader=nil
 local failed=false
+local sharpness=0.0
+function DNAVisual.setSharpness(enabled)
+ sharpness=enabled and 1.0 or 0.0
+ return sharpness>0
+end
+function DNAVisual.isSharp()
+ return sharpness>0
+end
 
 function DNAVisual.parameters(spec)
  if type(spec)~='table' or type(spec.body)~='number' or
@@ -28,6 +36,8 @@ extern number patternType;
 extern number patternStrength;
 extern vec2 atlasOrigin;
 extern vec2 atlasSize;
+extern vec2 atlasTexelSize;
+extern number detailStrength;
 vec3 rgb2hsv(vec3 c) {
  vec4 K=vec4(0.,-.3333333,.6666667,-1.);
  vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g));
@@ -61,7 +71,19 @@ number marks(vec2 uv) {
 vec4 effect(vec4 color,Image tex,vec2 textureCoords,vec2 screenCoords) {
  vec4 px=Texel(tex,textureCoords);
  if(px.a<=.001) return px*color;
- vec3 hsv=rgb2hsv(px.rgb);
+ // Textura já contém todas as cores; melhora somente microcontraste.
+ // Não amplia nem tenta recuperar barbatanas cortadas na imagem de origem.
+ vec3 incoming=px.rgb;
+ if(detailStrength>0.0 && px.a>.97) {
+  vec4 p1=Texel(tex,textureCoords+vec2(atlasTexelSize.x,0.));
+  vec4 p2=Texel(tex,textureCoords-vec2(atlasTexelSize.x,0.));
+  vec4 p3=Texel(tex,textureCoords+vec2(0.,atlasTexelSize.y));
+  vec4 p4=Texel(tex,textureCoords-vec2(0.,atlasTexelSize.y));
+  number confidence=min(min(p1.a,p2.a),min(p3.a,p4.a));
+  number a=smoothstep(.85,.995,confidence)*detailStrength;
+  incoming=clamp(incoming+(incoming-(p1.rgb+p2.rgb+p3.rgb+p4.rgb)*.25)*a*.6,0.,1.);
+ }
+ vec3 hsv=rgb2hsv(incoming);
  hsv.x=fract(hsv.x+hueShift);
  vec3 rgb=hsv2rgb(hsv);
  vec2 uv=(textureCoords-atlasOrigin)/atlasSize;
@@ -85,10 +107,12 @@ function DNAVisual.getShader(spec,x,y,w,h,atlasWidth,atlasHeight)
  shader:send('hueShift',params.hueShift)
  shader:send('patternType',params.pattern)
  shader:send('patternStrength',params.patternStrength)
+ shader:send('detailStrength',sharpness)
  atlasWidth=atlasWidth or 2688
  atlasHeight=atlasHeight or 1480
  shader:send('atlasOrigin',{x/atlasWidth,y/atlasHeight})
  shader:send('atlasSize',{w/atlasWidth,h/atlasHeight})
+ shader:send('atlasTexelSize',{1/atlasWidth,1/atlasHeight})
  return shader
 end
 return DNAVisual
