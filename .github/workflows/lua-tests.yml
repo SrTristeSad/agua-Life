@@ -57,6 +57,25 @@ jobs:
           assert len(meta['magic_pairs'])==7
           print('OK 441 tiles RGBA, 7 magic fish and JSON metadata')
           PY
+      - name: Verify original fish matrix 4K
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          import json
+          from pathlib import Path
+          original=Image.open('assets/fish/matrix/atlas_441.png')
+          refined=Image.open('assets/fish/matrix/atlas_original_refined_4k.png')
+          assert original.size==(2688,1480)
+          assert refined.size==(4032,2220) and refined.mode=='RGBA'
+          info=json.loads(Path('assets/fish/matrix/atlas_original_refined_4k.json').read_text())
+          assert info['grid']==[21,21] and info['cell']==[192,96]
+          assert len(info['bounds'])==21 and all(len(row)==21 for row in info['bounds'])
+          assert len(info['magic_bounds'])==7 and info['no_redraw'] is True
+          source=Path('main.lua').read_text(encoding='utf-8')
+          assert 'art.hd_matrix' not in source
+          assert 'art.matrix' in source
+          print('OK: matriz original recuperada; sem desenhos vetoriais rejeitados')
+          PY
       - name: Native GPU render smoke
         env:
           AGUA_RIG_SMOKE: '1'
@@ -78,7 +97,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
       - name: Build standalone LOVE game (without study-only original assets)
-        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json
+        run: zip -qr agua-Life-playable.love main.lua conf.lua art genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json assets/fish/matrix/atlas_original_refined_4k.png assets/fish/matrix/atlas_original_refined_4k.json
       - name: Publish playable LOVE file
         uses: actions/upload-artifact@v4
         with:
@@ -96,7 +115,7 @@ jobs:
       - name: Publish Windows game ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: agua-Life-Windows-original
+          name: agua-Life-Windows-Matriz-Original
           path: agua-Life-Windows-matriz.zip
           if-no-files-found: error
           retention-days: 30
