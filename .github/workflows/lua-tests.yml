@@ -106,6 +106,11 @@ jobs:
           AGUA_CLEAN_SMOKE: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
+      - name: Native graphics quality regression
+        env:
+          AGUA_QUALITY_SMOKE: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: timeout 50s xvfb-run -a love .
       - name: Native matrix-animation smoke
         env:
           AGUA_MATRIX_SMOKE: '1'
@@ -121,6 +126,14 @@ jobs:
           AGUA_PLAY_SMOKE: collection
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: timeout 50s xvfb-run -a love .
+      - name: Generate honest fish quality review
+        run: python scripts/audit_fish_art.py --output quality-review
+      - name: Publish quality review (F12/F15/F21)
+        uses: actions/upload-artifact@v4
+        with:
+          name: agua-Life-inspecao-dos-441-peixes
+          path: quality-review/
+          retention-days: 30
       - name: Build standalone LOVE game (without study-only original assets)
         run: zip -qr agua-Life-playable.love main.lua conf.lua art/catalog.lua art/dna_visual.lua art/fish.lua art/matrix.lua art/rigged_fish.lua genetics game assets/fish/azul_rubi assets/fish/matrix/atlas_441.png assets/fish/matrix/atlas_441.json assets/fish/matrix/atlas_original_clean_4k.png assets/fish/matrix/atlas_original_clean_4k.json
       - name: Verify packaged game uses corrected atlas
